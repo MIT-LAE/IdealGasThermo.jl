@@ -235,12 +235,14 @@ function Base.setproperty!(gas::Gas, sym::Symbol, val::AbstractVector{Float64})
         n = length(getfield(gas, :Y))
         setfield!(gas, :Y, MVector{n}(val))
         setfield!(gas, :MW, MW(gas)) # Update the MW of the gas mixture
+        setfield!(gas, :T, gas.T) # Force update of h
 
     elseif sym === :X # directly set mole fractions Y
         n = length(getfield(gas, :Y))
         Y = X2Y(val)
         setfield!(gas, :Y, MVector{n}(Y))
         setfield!(gas, :MW, MW(gas)) # Update the MW of the gas mixture
+        setfield!(gas, :T, gas.T) # Force update of h
     else
         error(
             "Only mass factions Y can be set with an array.",
@@ -328,10 +330,11 @@ with composition:
 ```
 """
 function set_h!(gas::AbstractGas, hspec::Float64)
-
     T = gas.T
     dT = T
-    for i = 1:20 # abs(dT) > ϵ
+
+    itermax = 20
+    for i = 1:itermax # abs(dT) > ϵ
         res = gas.h - hspec # Residual
         res_t = gas.cp  # ∂R/∂T = ∂h/∂T = cp
         dT = -res / res_t # Newton step
@@ -339,7 +342,9 @@ function set_h!(gas::AbstractGas, hspec::Float64)
         if abs(dT) ≤ ϵ
             break
         end
-
+        if i > itermax/2
+            dT = dT * i/itermax
+        end
         T = T + dT
         gas.T = T
     end
