@@ -342,8 +342,9 @@ function set_h!(gas::AbstractGas, hspec::Float64)
         if abs(dT) ≤ ϵ
             break
         end
+        #Prevent limit cycles if the iteration count is high
         if i > itermax/2
-            dT = dT * i/itermax
+            dT = dT * i/itermax #Step can no longer be periodic
         end
         T = T + dT
         gas.T = T
