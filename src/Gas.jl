@@ -339,7 +339,7 @@ function set_h!(gas::AbstractGas, hspec::Float64)
         res_t = gas.cp  # ∂R/∂T = ∂h/∂T = cp
         dT = -res / res_t # Newton step
 
-        if abs(dT) ≤ ϵ
+        if abs(dT/T) ≤ ϵ
             break
         end
         #Prevent limit cycles if the iteration count is high
@@ -350,7 +350,7 @@ function set_h!(gas::AbstractGas, hspec::Float64)
         gas.T = T
     end
 
-    if abs(dT) > ϵ
+    if abs(dT/T) > ϵ
         error(
             "Error: `set_h!` did not converge:\ngas=",
             print(gas),
