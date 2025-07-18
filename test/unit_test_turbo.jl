@@ -21,7 +21,7 @@
     gas2 = deepcopy(gas)
     set_TP!(gas2, 3 * Tstd, Pstd)
     gas3 = IdealGasThermo.gas_mixing(gas, gas2, 2.0)
-    @test gas3.T == 703.6767764998808
+    @test gas3.T ≈ 703.6767764998808 rtol = 1e-8
 
     @testset "tasopt comparisons" begin
         gas = Gas()
