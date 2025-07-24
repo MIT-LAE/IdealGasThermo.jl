@@ -34,3 +34,16 @@ function FAR(x)
 end
 
 ForwardDiff.gradient(FAR, [288.15, 101325.0, 288.15, 1000.0, 1.0, 0.0])
+
+function PR(x)
+    T = x[1]
+    P = x[2]
+    PR = x[3]
+    eta_p = x[4]
+    
+    g = Gas(T, P)
+    IdealGasThermo.PressureRatio!(g, PR, eta_p)
+    return g.T
+end
+
+ForwardDiff.gradient(PR, [288.15, 101325.0, 2.0, 1.0])

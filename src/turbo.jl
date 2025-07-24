@@ -5,7 +5,7 @@
 
 Generic pressure ratio conversion. See [`compress`](@ref) and [`expand`](@ref)
 """
-function PressureRatio!(gas::AbstractGas, PR::Float64, ηp::Float64 = 1.0)
+function PressureRatio!(gas::AbstractGas, PR::type, ηp::type = 1.0) where type<:Real
 
     T0 = gas.T
     ϕ0 = gas.ϕ
@@ -53,7 +53,8 @@ end
 Compression with an optional polytropic efficiency.PR should be ≥ 1.0.
 See also [`expand`](@ref).
 """
-function compress!(gas::AbstractGas, PR::Float64, ηp::Float64 = 1.0)
+function compress!(gas::AbstractGas, PR::R, ηp::R = 1.0) where R<:Real
+
     if PR < 1.0
         error("The specified pressure ratio (PR) to compress by needs to be ≥ 1.0.
         Provided PR = $PR. Did you mean to use `expand`?")
@@ -67,7 +68,7 @@ end
 Expansion at a given polytropic efficiency. PR should be ≤ 1.0.
 See also [`compress`](@ref).
 """
-function expand!(gas::AbstractGas, PR::Float64, ηp::Float64 = 1.0)
+function expand!(gas::AbstractGas, PR::R, ηp::R = 1.0) where R<:Real
     if PR > 1.0
         error("The specified pressure ratio (PR) to compress by needs to be ≤ 1.0.
         Provided PR = $PR. Did you mean to use `compress`?")
@@ -80,7 +81,8 @@ end
 
 Calculates the gas state for a change in Mach number with an optional polytropic efficiency.
 """
-function gas_Mach!(gas::AbstractGas, M0::Float64, M::Float64, ηp::Float64 = 1.0)
+function gas_Mach!(gas::AbstractGas, M0::R, M::R, ηp::R = 1.0) where R<:Real
+
     itmax = 10
     ttol = 0.000001
 
@@ -124,7 +126,7 @@ end
 Calculates the resulting gas after two gases (gas1 and gas2) are mixed at constant pressure, with a mass ratio
 mratio = mass of gas2 / mass gas1.
 """
-function gas_mixing(gas1::AbstractGas, gas2::AbstractGas, mratio::Float64)
+function gas_mixing(gas1::AbstractGas, gas2::AbstractGas, mratio::R) where R<:Real
 
     #Extract dictionaries with gas molar fractions
     if gas1 isa Gas1D
