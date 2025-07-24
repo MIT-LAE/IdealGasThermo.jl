@@ -96,7 +96,7 @@ end  # function X2Y
 Convert a mole fraction dictonary into the given array X with the right order of
 compounds.
 """
-function Xidict2Array!(Xdict::Dict{String,Float64}, X::AbstractVector)
+function Xidict2Array!(Xdict::Dict{String,R}, X::AbstractVector) where R <: Real
     names = spdict.name
     for (key, value) in Xdict
         index = findfirst(x -> x == key, names)
@@ -111,9 +111,9 @@ end  # function Xidict2Array
     Xidict2Array(Xdict::Dict{String, Float64})
 Converts the dict into a new array with mole fractions in the right order
 """
-function Xidict2Array(Xdict::Dict{String,Float64})
+function Xidict2Array(Xdict::Dict{String, R}) where R <: Real
     names = spdict.name
-    X = zeros(Float64, Nspecies)
+    X = zeros(R, Nspecies)
     for (key, value) in Xdict
         index = findfirst(x -> x == key, names)
         X[index] = value

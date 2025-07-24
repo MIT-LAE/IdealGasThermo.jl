@@ -25,17 +25,9 @@ Constructs `Gas` with given composition `Y`
 """
 function Gas(Y::AbstractVector{R}) where {R<:Real}
   
-    gas = Gas{M, type}(
-        R(Pstd),                      # Pressure
-        R(Tstd),                      # Temperature
-        Tarray(R(Tstd)),              # Tarray
-        R(Cp(T(Tstd), Air)),          # cp
-        R((Cp(Tstd + 1.0, Air) - Cp(Tstd - 1.0, Air)) / 2.0), # dcp/dT (finite diff)
-        R(h(Tstd, Air)),              # h
-        R(s(Tstd, Pstd, Air)),        # ϕ
-        Yvec,                         # Mass fractions
-        R(Air.MW),                    # Molecular weight
-    )
+    gas = Gas(Pstd, Tstd)
+    gas.Y = SVector{Nspecies, R}(Y)
+    set_TP!(gas, Tstd, Pstd) #setting temperature and pressure to recalculate thermodynamic properties
     return gas
 end
 
@@ -80,7 +72,7 @@ function Gas()
         h(Tstd, Air),
         s(Tstd, Pstd, Air),
         Y,
-        Air.MW,
+        Air.MW
     )
 
 end
@@ -351,7 +343,7 @@ Sets the gas state based on a specified change in enthalpy (Δh) [J/mol],
 and a given polytropic efficiency. This represents adding or removing some work
 from the gas.
 """
-function set_Δh!(gas::AbstractGas, Δhspec::Float64, ηp::Float64 = 1.0)
+function set_Δh!(gas::AbstractGas, Δhspec::R, ηp::R = 1.0) where R <: Real
     P0 = gas.P
     ϕ0 = gas.ϕ
     hf = gas.h + Δhspec
@@ -364,7 +356,7 @@ end
 
 Calculates state of the gas given enthalpy and pressure (h,P)
 """
-function set_hP!(gas::AbstractGas, hspec::Float64, P::Float64)
+function set_hP!(gas::AbstractGas, hspec::R, P::R) where R <: Real
     set_h!(gas, hspec)
     gas.P = P
     return gas
@@ -396,7 +388,7 @@ with composition:
 ```
 
 """
-function set_TP!(gas::AbstractGas, T::Float64, P::Float64)
+function set_TP!(gas::AbstractGas, T::R, P::R) where R <: Real
     gas.T = T
     gas.P = P
     return gas

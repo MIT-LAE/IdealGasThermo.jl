@@ -3,18 +3,18 @@
     gas.T = Tstd = IdealGasThermo.Tstd
     gas.P = Pstd = IdealGasThermo.Pstd
 
-    IdealGasThermo.compress(gas, 2.0, 1.0)
+    IdealGasThermo.compress!(gas, 2.0, 1.0)
     @test gas.P == 2 * Pstd
 
     #Test that compress throws right errors
     PR = 0.5
     err_msg = "The specified pressure ratio (PR) to compress by needs to be ≥ 1.0.
         Provided PR = $PR. Did you mean to use `expand`?"
-    @test_throws ErrorException(err_msg) IdealGasThermo.compress(gas, PR)
+    @test_throws ErrorException(err_msg) IdealGasThermo.compress!(gas, PR)
     PR = 1.5
     err_msg = "The specified pressure ratio (PR) to compress by needs to be ≤ 1.0.
         Provided PR = $PR. Did you mean to use `compress`?"
-    @test_throws ErrorException(err_msg) IdealGasThermo.expand(gas, PR)
+    @test_throws ErrorException(err_msg) IdealGasThermo.expand!(gas, PR)
 
     #Test gas mixing
     set_TP!(gas, Tstd, Pstd)
@@ -38,11 +38,11 @@
         @test gas.T ≈ 329.99 rtol = 1e-3
 
         set_TP!(gas, Tstd, Pstd)
-        IdealGasThermo.compress(gas, 2.0, 1.0)
+        IdealGasThermo.compress!(gas, 2.0, 1.0)
         @test gas.T ≈ 363.29 atol = 1e-1
 
         set_TP!(gas, Tstd, Pstd)
-        IdealGasThermo.expand(gas, 0.5, 1.0)
+        IdealGasThermo.expand!(gas, 0.5, 1.0)
         @test gas.T ≈ 244.547 atol = 1e-1
 
         set_TP!(gas, Tstd, Pstd)
