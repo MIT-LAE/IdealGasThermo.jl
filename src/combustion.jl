@@ -373,6 +373,7 @@ function AFT(fuel::AbstractSpecies, oxidizer::AbstractSpecies = DryAir)
 
     gas.X = dict
     gas.T = 298.15
+    h0 = gas.h
     Hfr = gas.Hf
     # Hr298 = gas.h*gas.MW/1000.0
 
@@ -382,9 +383,9 @@ function AFT(fuel::AbstractSpecies, oxidizer::AbstractSpecies = DryAir)
 
     #Energy Balance: Hrf + H(298.15) - Hr298.15 = Hpf + H(T) - Hp298.15
     #                Hrf - Hpf = ΔH(T)
-    ΔHpsens = Hfr - Hfp
+    hf = Hfr - Hfp + h0
     # set_h!(gas, Hpsens)
-    set_Δh!(gas, ΔHpsens, 0.0)
+    set_h!(gas, hf)
 
     return gas.T
 end  # function AFT
