@@ -167,7 +167,7 @@ function Base.getproperty(gas::Gas, sym::Symbol)
     end
 end
 
-function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::R) where {N, R}
+function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::R) where {N, R<:Real}
     if sym === :T
         setfield!(gas, :T, val)
         setfield!(gas, :Tarray, Tarray!(val, gas.Tarray))
@@ -218,7 +218,7 @@ function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::R) where {N, R}
     return nothing
 end
 
-function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractVector{<:R}) where {N, R}
+function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractVector{<:R}) where {N, R<:Real}
     if sym === :Y
         setfield!(gas, :Y, MVector{N, R}(val))
         setfield!(gas, :MW, MW(gas))
@@ -234,7 +234,7 @@ function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractVector{<:R}
     return nothing
 end
 
-function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractDict{String, R}) where {N, R}
+function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractDict{String, R}) where {N, R<:Real}
     names = spdict.name
     Y = zeros(MVector{N, R})
 
@@ -247,7 +247,7 @@ function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractDict{String
         gas.MW = MW(gas)
 
     elseif sym === :X
-        X = similar(Y)
+        X = zeros(MVector{N, R})
         S = zero(R)
         for (key, value) in val
             idx = findfirst(==(key), names)

@@ -184,7 +184,7 @@ julia> IdealGasThermo.stoich_molar_FOR(CH4)
 """
 function stoich_molar_FOR(fuel::AbstractSpecies, oxidizer::AbstractSpecies = DryAir)
     molFuelOxyRatio = stoich_molar_fuel_oxy_ratio(fuel.name)
-    if typeof(oxidizer) == species
+    if oxidizer isa species
         Xin = Dict(oxidizer.name => 1.0)
         if oxidizer.name == "Air"
             Xin = Xair
@@ -259,7 +259,7 @@ function vitiated_mixture(
     ηburn::R = 1.0,
 ) where R <: Real
 
-    if typeof(oxidizer) == species
+    if oxidizer isa species
         Xin = Dict(oxidizer.name => 1.0)
         if oxidizer.name == "Air"
             Xin = Xair
@@ -422,7 +422,7 @@ function vitiated_species(
 
     Xdict = vitiated_mixture(fuel, oxidizer, FAR, ηburn)
 
-    X = zeros(Float64, Nspecies)
+    X = zeros(R, Nspecies)
     Xidict2Array!(Xdict, X)
 
     return generate_composite_species(X, name)
@@ -486,7 +486,7 @@ function fixed_fuel_vitiated_species(fuel, oxidizer, ηburn::R = 1.0) where R <:
     nCO2, nN2, nH2O, nO2 = ηburn .* reaction_change_molar_fraction(fuel.name)
     nFuel = (1.0 - ηburn)
     massratio = oxidizer.MW / fuel.MW
-    if typeof(oxidizer) == species
+    if oxidizer isa species
         Xin::Dict{String,Real} = Dict(oxidizer.name => 1.0)
         if oxidizer.name == "Air"
             Xin = Xair
@@ -495,11 +495,11 @@ function fixed_fuel_vitiated_species(fuel, oxidizer, ηburn::R = 1.0) where R <:
         Xin = oxidizer.composition
     end
     names::Vector{String} = [fuel.name, "CO2", "H2O", "N2", "O2"]
-    ΔX::Vector{Float64} = [nFuel, nCO2, nH2O, nN2, nO2]
+    ΔX::Vector{R} = [nFuel, nCO2, nH2O, nN2, nO2]
     Xdict::Dict{String,Real} = Dict(zip(names, ΔX))
 
-    ΔX_array = zeros(Float64, Nspecies)
-    Xin_array = zeros(Float64, Nspecies)
+    ΔX_array = zeros(R, Nspecies)
+    Xin_array = zeros(R, Nspecies)
     allnames = view(spdict.name, :)
 
     for (key, value) in Xdict
@@ -548,7 +548,7 @@ function fuel_combustion(
     fuel_sps = species_in_spdict(fuel)
 
     #Find oxidizer composition
-    if typeof(gas_ox) == Gas1D
+    if gas_ox isa Gas1D
         gas_sps = gas_ox.comp_sp
     else
         if "Air" in keys(gas_ox.Xdict)
@@ -604,7 +604,7 @@ function gas_burn(
     fuel_sps = species_in_spdict(fuel)
 
     #Extract composite species with oxidizer gas composition
-    if typeof(gas_ox) == Gas1D
+    if gas_ox isa Gas1D
         gas_sps = gas_ox.comp_sp
     else
         if "Air" in keys(gas_ox.Xdict)

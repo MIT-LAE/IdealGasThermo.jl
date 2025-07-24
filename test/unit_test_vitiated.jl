@@ -139,8 +139,8 @@ end
     set_TP!(gas, Tstd, Pstd)
     set_TP!(gas1, Tstd, Pstd)
     PR = 10.0
-    IdealGasThermo.compress(gas, PR, ηp)
-    IdealGasThermo.compress(gas1, PR, ηp)
+    IdealGasThermo.compress!(gas, PR, ηp)
+    IdealGasThermo.compress!(gas1, PR, ηp)
     @test gas.P ≈ Pstd * PR
     @test gas1.P ≈ Pstd * PR
     @test gas.h ≈ gas1.h
@@ -152,8 +152,8 @@ end
     set_TP!(gas, Tstd, Pstd)
     set_TP!(gas1, Tstd, Pstd)
     PR = 0.5
-    IdealGasThermo.expand(gas, PR, ηp)
-    IdealGasThermo.expand(gas1, PR, ηp)
+    IdealGasThermo.expand!(gas, PR, ηp)
+    IdealGasThermo.expand!(gas1, PR, ηp)
     @test gas.P ≈ Pstd * PR
     @test gas1.P ≈ Pstd * PR
     @test gas.T < Tstd

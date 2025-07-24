@@ -127,7 +127,7 @@ mratio = mass of gas2 / mass gas1.
 function gas_mixing(gas1::AbstractGas, gas2::AbstractGas, mratio::Float64)
 
     #Extract dictionaries with gas molar fractions
-    if typeof(gas1) == Gas1D
+    if gas1 isa Gas1D
         X1 = gas1.comp_sp.composition
     else
         if "Air" in keys(gas1.Xdict)
@@ -137,7 +137,7 @@ function gas_mixing(gas1::AbstractGas, gas2::AbstractGas, mratio::Float64)
         end
     end
 
-    if typeof(gas2) == Gas1D
+    if gas2 isa Gas1D
         X2 = gas2.comp_sp.composition
     else
         if "Air" in keys(gas2.Xdict)

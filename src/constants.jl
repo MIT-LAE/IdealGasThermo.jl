@@ -4,7 +4,7 @@ const Tstd = 298.15 # K
 const ϵ = sqrt(eps()) #standard tolerance 
 
 # Air composition
-const Xair = Dict(
+const Xair = Dict{String, Float64}(
     "N2" => 0.78084,
     "Ar" => 0.009365,
     "H2O" => 0.0,
@@ -12,7 +12,7 @@ const Xair = Dict(
     "O2" => 0.209476,
 )
 
-const XwetAir = Dict(
+const XwetAir = Dict{String, Float64}(
     "N2" => 0.78084,
     "Ar" => 0.009365,
     "H2O" => 0.018722,
@@ -21,4 +21,4 @@ const XwetAir = Dict(
 )
 
 const Ytasopt =
-    Dict("N2" => 0.7532, "O2" => 0.2315, "CO2" => 0.0006, "H2O" => 0.0020, "Ar" => 0.0127)
+    Dict{String, Float64}("N2" => 0.7532, "O2" => 0.2315, "CO2" => 0.0006, "H2O" => 0.0020, "Ar" => 0.0127)
