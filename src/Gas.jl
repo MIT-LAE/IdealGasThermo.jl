@@ -167,7 +167,7 @@ function Base.getproperty(gas::Gas, sym::Symbol)
     end
 end
 
-function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::R) where {N, R<:Real}
+function Base.setproperty!(gas::Gas{N, R1}, sym::Symbol, val::R2) where {N, R1<:Real, R2<:Real}
     if sym === :T
         setfield!(gas, :T, val)
         setfield!(gas, :Tarray, Tarray!(val, gas.Tarray))
@@ -175,10 +175,10 @@ function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::R) where {N, R<:Rea
 
         A = val < 1000 ? view(spdict.alow, :) : view(spdict.ahigh, :)
 
-        cptemp = zero(R)
-        htemp = zero(R)
-        ϕtemp = zero(R)
-        cp_Ttemp = zero(R)
+        cptemp = zero(R1)
+        htemp = zero(R1)
+        ϕtemp = zero(R1)
+        cp_Ttemp = zero(R1)
 
         for (Yᵢ, a, m) in zip(gas.Y, A, spdict.MW)
             if Yᵢ != 0
@@ -198,7 +198,7 @@ function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::R) where {N, R<:Rea
         setfield!(gas, :P, val)
         TT = gas.Tarray
         A = TT[4] < 1000 ? view(spdict.alow, :) : view(spdict.ahigh, :)
-        ϕtemp = zero(R)
+        ϕtemp = zero(R1)
 
         for (Yᵢ, a, m) in zip(gas.Y, A, spdict.MW)
             if Yᵢ != 0
@@ -218,25 +218,25 @@ function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::R) where {N, R<:Rea
     return nothing
 end
 
-function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractVector{<:R}) where {N, R<:Real}
+function Base.setproperty!(gas::Gas{N, R1}, sym::Symbol, val::AbstractVector{<:R2}) where {N, R1<:Real, R2<:Real}
     if sym === :Y
-        setfield!(gas, :Y, MVector{N, R}(val))
+        setfield!(gas, :Y, MVector{N, R1}(val))
         setfield!(gas, :MW, MW(gas))
-        gas.T = gas.T  # Re-trigger T setter
+        gas.T = gas.T #Reset T
     elseif sym === :X
         Y = X2Y(val)
-        setfield!(gas, :Y, MVector{N, R}(Y))
+        setfield!(gas, :Y, MVector{N, R1}(Y))
         setfield!(gas, :MW, MW(gas))
-        gas.T = gas.T
+        gas.T = gas.T #Reset T
     else
         error("Only mass fractions Y/X can be set with a vector. Tried: $sym")
     end
     return nothing
 end
 
-function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractDict{String, R}) where {N, R<:Real}
+function Base.setproperty!(gas::Gas{N, R1}, sym::Symbol, val::AbstractDict{String, R2}) where {N, R1<:Real, R2<:Real}
     names = spdict.name
-    Y = zeros(MVector{N, R})
+    Y = zeros(MVector{N, R1})
 
     if sym === :Y
         for (key, value) in val
@@ -244,11 +244,12 @@ function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractDict{String
             Y[idx] = value
         end
         gas.Y = Y
+        gas.T = gas.T #Reset T
         gas.MW = MW(gas)
 
     elseif sym === :X
-        X = zeros(MVector{N, R})
-        S = zero(R)
+        X = zeros(MVector{N, R1})
+        S = zero(R1)
         for (key, value) in val
             idx = findfirst(==(key), names)
             X[idx] = value
@@ -256,6 +257,7 @@ function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::AbstractDict{String
         end
         X ./= S
         gas.Y = X2Y(X)
+        gas.T = gas.T #Reset T
         gas.MW = MW(gas)
     else
         error("Only mass fractions Y/X can be set with a Dict. Tried: $sym")

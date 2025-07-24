@@ -255,9 +255,9 @@ See [here](@ref vitiated) for some explanation of the background.
 function vitiated_mixture(
     fuel::AbstractSpecies,
     oxidizer::AbstractSpecies,
-    FAR::R,
-    ηburn::R = 1.0,
-) where R <: Real
+    FAR::R1,
+    ηburn::R2 = 1.0,
+) where {R1 <: Real, R2 <: Real}
 
     if oxidizer isa species
         Xin = Dict(oxidizer.name => 1.0)
@@ -279,7 +279,7 @@ function vitiated_mixture(
 
     Xdict = Dict(zip(names, ΔX))
 
-    Xvitiated::Dict{String, R} = mergewith(+, Xin, Xdict)
+    Xvitiated::Dict{String, R1} = mergewith(+, Xin, Xdict)
 
     for key in keys(Xvitiated) #Normalize such that sum(Xi) = 1
         Xvitiated[key] = Xvitiated[key] / (1 + ηburn * molFAR)
@@ -300,9 +300,9 @@ Convenience function that finds fuel and oxidizer from thermo database
 function vitiated_mixture(
     fuel::AbstractString,
     oxidizer::AbstractString,
-    FAR::R,
-    ηburn::R = 1.0,
-) where R <: Real
+    FAR::R1,
+    ηburn::R2 = 1.0,
+) where {R1 <: Real, R2 <: Real}
 
     fuel = species_in_spdict(fuel)
     oxidizer = species_in_spdict(oxidizer)
@@ -416,14 +416,14 @@ with composition:
 function vitiated_species(
     fuel::AbstractSpecies,
     oxidizer::AbstractSpecies,
-    FAR::R;
-    ηburn::R = 1.0,
+    FAR::R1;
+    ηburn::R2 = 1.0,
     name::AbstractString = "vitiated species",
-) where R <: Real
+) where {R1 <: Real, R2 <: Real}
 
     Xdict = vitiated_mixture(fuel, oxidizer, FAR, ηburn)
 
-    X = zeros(R, Nspecies)
+    X = zeros(R1, Nspecies)
     Xidict2Array!(Xdict, X)
 
     return generate_composite_species(X, name)
@@ -432,10 +432,10 @@ end  # function vitiated_species
 function vitiated_species(
     fuel::AbstractString,
     oxidizer::AbstractString,
-    FAR::R;
-    ηburn::R = 1.0,
+    FAR::R1;
+    ηburn::R2 = 1.0,
     name::AbstractString = "vitiated species",
-) where R <: Real
+) where {R1 <: Real, R2 <: Real}
 
     fuel = species_in_spdict(fuel)
     oxidizer = species_in_spdict(oxidizer)
@@ -539,11 +539,11 @@ efficiency and the fuel enthalpy of vaporization as optional inputs.
 function fuel_combustion(
     gas_ox::AbstractGas,
     fuel::String,
-    Tf::R,
-    FAR::R,
-    ηburn::R = 1.0,
-    hvap::R = 0.0
-) where R <: Real
+    Tf::R1,
+    FAR::R1,
+    ηburn::R2 = 1.0,
+    hvap::R2 = 0.0
+) where {R1 <: Real, R2 <: Real}
 
     #Create variables corresponding to the oxidizer and fuel species and mixtures
     fuel_sps = species_in_spdict(fuel)
@@ -595,11 +595,11 @@ It includes the combustion efficiency and the fuel enthalpy of vaporization as o
 function gas_burn(
     gas_ox::AbstractGas,
     fuel::String,
-    Tf::R,
-    Tburn::R,
-    ηburn::R = 1.0,
-    hvap::R = 0.0
-) where R <: Real
+    Tf::R1,
+    Tburn::R1,
+    ηburn::R2 = 1.0,
+    hvap::R2 = 0.0
+) where {R1 <: Real, R2 <: Real}
 
     #Create variables corresponding to the oxidizer and fuel species and mixtures
     fuel_sps = species_in_spdict(fuel)
