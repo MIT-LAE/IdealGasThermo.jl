@@ -71,15 +71,17 @@ use with ForwardDiff.
 See also [`Gas1D`](@ref).
 """
 function Gas1D(T::R, P::R) where R<:Real
+    Xvec = Xidict2Array(Xair)
+    DA = generate_composite_species(R.(Xvec), "Dry Air")
     Gas1D{R}(
-        DryAir,
+        DA,
         P,
         T,
         Tarray(T),
-        Cp(T, DryAir),
-        (Cp(T + one(R), DryAir) - Cp(T - one(R), DryAir)) / 2.0,
-        h(T, DryAir),
-        s(T, P, DryAir),
+        Cp(T, DA),
+        (Cp(T + one(R), DA) - Cp(T - one(R), DA)) / 2.0,
+        h(T, DA),
+        s(T, P, DA),
     )
 end
 
