@@ -5,14 +5,16 @@ US Standard Atmosphere. Model valid between -5 and 86 km in geometric altitude. 
 geometric altitude ("alt_type == "geometric") or geopotential altitude ("alt_type == "geopotential"). 
 Model from: `https://ntrs.nasa.gov/citations/19770009539`
 """
-function standard_atmosphere(z, alt_type = "geometric")
+function standard_atmosphere(z::R, alt_type = "geometric") where R<:Real
 
     g = 9.80665 #Acceleration of gravity on Earth surface (z = 0)
     R_e = 6.356766e6 #Radius of Earth
 
     #Initialize gas (composition does not change)
-    gas = Gas1D()
-    R = gas.R
+    T = R(Tstd)
+    P = R(Pstd)
+    gas = Gas(T, P)
+    Rg = gas.R
 
     #Calculate geopotential altitude
     if alt_type == "geometric"
@@ -44,12 +46,12 @@ function standard_atmosphere(z, alt_type = "geometric")
     #Find temperature and pressure using the lapse rate
     #Use closed-form solutions
     if λ != 0
-        P = P0 * ((T0 + λ * (H - H0)) / T0)^(-g / (R * λ))
+        P = P0 * ((T0 + λ * (H - H0)) / T0)^(-g / (Rg * λ))
         T = T0 + λ * (H - H0)
 
     elseif λ == 0
         T = T0
-        P = P0 * exp(-g * (H - H0) / (R * T))
+        P = P0 * exp(-g * (H - H0) / (Rg * T))
     end
 
     #set the gas to the correct T and P

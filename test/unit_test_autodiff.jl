@@ -174,4 +174,24 @@ end
             @test g ≈ grad_FD[i] rtol = 1e-4
         end
     end
+
+    @testset "atmos" begin 
+        #Returns temperature and pressure at a given altitude
+        function atmosfun(x)
+            z = x[1]
+            
+            g = IdealGasThermo.standard_atmosphere(z)
+            return [g.T, g.P]
+        end
+        x0 = [1e3]
+        J = ForwardDiff.jacobian(atmosfun, x0)
+
+        #Compare gradient to finite differences
+        J_FD = FDjacobian(atmosfun, x0)
+        for i in 1:2
+            for j in 1:length(x0)
+                @test J[i, j] ≈ J_FD[i, j] rtol = 1e-4
+            end
+        end
+    end
 end
