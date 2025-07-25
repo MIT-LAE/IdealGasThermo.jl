@@ -131,4 +131,24 @@ end
             @test J[i, j] ≈ J_FD[i, j] rtol = 1e-4
         end
     end
+
+    function Mach(x)
+        T = x[1]
+        P = x[2]
+        M0 = x[3]
+        M = x[4]
+
+        gas = Gas(T, P)
+        IdealGasThermo.gas_Mach!(gas, M0, M)
+        return [gas.T, gas.P]
+    end
+    x0 = [298.15, 101325.0, 0.1, 0.8]
+    J = ForwardDiff.jacobian(Mach, x0)
+
+    J_FD = FDjacobian(Mach, x0)
+    for i in 1:2
+        for j in 1:length(x0)
+            @test J[i, j] ≈ J_FD[i, j] rtol = 1e-4
+        end
+    end
 end
