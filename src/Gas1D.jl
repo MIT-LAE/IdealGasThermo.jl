@@ -1,5 +1,5 @@
 """
-    Gas1D
+    Gas1D{R}
 
 Type that represents single component gases.
 """

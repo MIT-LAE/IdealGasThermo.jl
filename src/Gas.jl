@@ -1,6 +1,6 @@
 abstract type AbstractGas end
 """
-    Gas{N}
+    Gas{N, R}
 
 A type that represents an ideal gas that is calorically perfect 
 i.e. ``c_p(T)``, ``h(T)``, ``\\phi(T)`` and ``s(T,P)``.

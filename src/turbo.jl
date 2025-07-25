@@ -1,7 +1,7 @@
 # Turbomachinery related functions
 
 """
-    PressureRatio!(gas::AbstractGas, PR::Float64, ηp::Float64=1.0,)
+    PressureRatio!(gas, PR, ηp=1.0,)
 
 Generic pressure ratio conversion. See [`compress`](@ref) and [`expand`](@ref)
 """
@@ -48,7 +48,7 @@ function PressureRatio!(gas::AbstractGas, PR::R1, ηp::R2 = 1.0) where {R1<:Real
 end
 
 """
-   compress!(gas::AbstractGas, PR::Float64, ηp::Float64=1.0,)
+   compress!(gas, PR, ηp=1.0,)
 
 Compression with an optional polytropic efficiency.PR should be ≥ 1.0.
 See also [`expand`](@ref).
@@ -63,7 +63,7 @@ function compress!(gas::AbstractGas, PR::R1, ηp::R2 = 1.0) where {R1<:Real, R2<
 end
 
 """
-   expand!(gas::AbstractGas, PR::Float64, ηp::Float64=1.0,)
+   expand!(gas, PR, ηp=1.0,)
 
 Expansion at a given polytropic efficiency. PR should be ≤ 1.0.
 See also [`compress`](@ref).
@@ -77,7 +77,7 @@ function expand!(gas::AbstractGas, PR::R1, ηp::R2 = 1.0) where {R1<:Real, R2<:R
 end
 
 """
-   gas_Mach!(gas::AbstractGas, M0::Float64, M::Float64, ηp::Float64 = 1.0)
+   gas_Mach!(gas, M0, M, ηp = 1.0)
 
 Calculates the gas state for a change in Mach number with an optional polytropic efficiency.
 """
@@ -121,7 +121,7 @@ function gas_Mach!(gas::AbstractGas, M0::R1, M::R1, ηp::R2 = 1.0) where {R1<:Re
 end
 
 """
-   gas_mixing(gas1::AbstractGas, gas2::AbstractGas, mratio::Float64)
+   gas_mixing(gas1, gas2, mratio)
 
 Calculates the resulting gas after two gases (gas1 and gas2) are mixed at constant pressure, with a mass ratio
 mratio = mass of gas2 / mass gas1.

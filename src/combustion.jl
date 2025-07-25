@@ -218,8 +218,8 @@ stoich_FOR(fuel::AbstractString, oxi::AbstractString) =
     stoich_FOR(species_in_spdict(fuel), species_in_spdict(oxi))
 
 """
-    vitiated_mixture(fuel::AbstractSpecies, oxidizer::AbstractSpecies, 
-    FAR::Float64, ηburn::Float64=1.0)
+    vitiated_mixture(fuel, oxidizer, 
+    FAR, ηburn=1.0)
 
 Calculates the composition of a burnt gas mixture. Defaults to stoichiometric 
 conditions if FAR is not specified. `vitiated_mixture` returns the number of 
@@ -292,8 +292,8 @@ vitiated_mixture(fuel, oxidizer) =
     vitiated_mixture(fuel, oxidizer, stoich_FOR(fuel, oxidizer))
 
 """
-    vitiated_mixture(fuel::AbstractString, oxidizer::AbstractString, 
-    FAR::Float64, ηburn::Float64=1.0)
+    vitiated_mixture(fuel, oxidizer, 
+    FAR, ηburn=1.0)
 
 Convenience function that finds fuel and oxidizer from thermo database
 """
@@ -390,8 +390,8 @@ function AFT(fuel::AbstractSpecies, oxidizer::AbstractSpecies = DryAir)
     return gas.T
 end  # function AFT
 """
-    vitiated_species(fuel::AbstractSpecies, oxidizer::AbstractSpecies, 
-    FAR::Float64, ηburn::Float64=1.0, name::AbstractString="vitiated species")
+    vitiated_species(fuel, oxidizer, 
+    FAR, ηburn=1.0, name="vitiated species")
 
 Returns a [`composite_species`](@ref) that represents the burnt gas mixture
 at the specified FAR. If no FAR is provided stoichiometeric conditions are
@@ -450,9 +450,9 @@ vitiated_species(f::AbstractString, o::AbstractString) =
     vitiated_species(f, o, stoich_FOR(f, o))
 
 """
-    fixed_fuel_vitiated_species(fuel, oxidizer, ηburn::Float64=1.0)
+    fixed_fuel_vitiated_species(fuel, oxidizer, ηburn=1.0)
 
-Returns a function `burntgas(FAR::Float64)` that is specific to the fuel and oxidizer
+Returns a function `burntgas(FAR::Real)` that is specific to the fuel and oxidizer
 combination provided. This gives a highly performant function that can 
 simply be called at any given FAR for that specific fuel+oxidizer combo.
 
@@ -529,8 +529,8 @@ function fixed_fuel_vitiated_species(fuel, oxidizer, ηburn::R = 1.0) where R <:
 end  # function fixed_fuel_vitiated_species
 
 """
-    fuel_combustion(gas_ox::AbstractGas, fuel::String, Tf::Float64, FAR::Float64, 
-    ηburn::Float64 = 1.0, hvap::Float64 = 0.0)
+    fuel_combustion(gas_ox, fuel, Tf, FAR, 
+    ηburn = 1.0, hvap = 0.0)
 
 This function returns an `AbstractGas` with the combustion products at the combustor exit temperature
 for a given fuel type, oxidizer gas at a given enthalpy, and FAR. It includes the combustion 
@@ -585,8 +585,8 @@ function fuel_combustion(
 end
 
 """
-    gas_burn(gas_ox::AbstractGas, fuel::String, Tf::Float64, Tburn::Float64, 
-    ηburn::Float64 = 1.0, hvap::Float64 = 0.0)
+    gas_burn(gas_ox, fuel, Tf, Tburn, 
+    ηburn = 1.0, hvap = 0.0)
 
 This function returns a tuple containing the FAR and an `AbstractGas` with the combustion 
 products for a given fuel type, oxidizer gas at a given enthalpy, and desired combustor exit temperature. 
