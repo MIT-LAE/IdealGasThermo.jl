@@ -540,11 +540,10 @@ function fuel_combustion(
     gas_ox::AbstractGas,
     fuel::String,
     Tf::R1,
-    FAR::R1,
-    ηburn::R2 = 1.0,
-    hvap::R2 = 0.0
-) where {R1 <: Real, R2 <: Real}
-
+    FAR::R2,
+    ηburn::R3 = 1.0,
+    hvap::R4 = 0.0
+) where  {R1 <: Real, R2 <: Real, R3 <: Real, R4 <: Real}
     #Create variables corresponding to the oxidizer and fuel species and mixtures
     fuel_sps = species_in_spdict(fuel)
 
@@ -596,10 +595,10 @@ function gas_burn(
     gas_ox::AbstractGas,
     fuel::String,
     Tf::R1,
-    Tburn::R1,
-    ηburn::R2 = 1.0,
-    hvap::R2 = 0.0
-) where {R1 <: Real, R2 <: Real}
+    Tburn::R2,
+    ηburn::R3 = 1.0,
+    hvap::R4 = 0.0
+) where {R1 <: Real, R2 <: Real, R3 <: Real, R4 <: Real}
 
     #Create variables corresponding to the oxidizer and fuel species and mixtures
     fuel_sps = species_in_spdict(fuel)

@@ -194,4 +194,98 @@ end
             end
         end
     end
+
+    @testset "Gas1D" begin 
+        #Elaborate function of thermodynamic parameters
+        function thermofun1D(x)
+            T = x[1]
+            P = x[2]
+            
+            g = Gas1D(T, P)
+            s = g.s
+            h = g.h
+            return s^2/h
+        end
+        x0 = [288.15, 101325.0]
+        grad = ForwardDiff.gradient(thermofun1D, x0)
+
+        #Compare gradient to finite differences
+        grad_FD = FDjacobian(thermofun1D, x0)
+        for (i,g) in enumerate(grad)
+            @test g ≈ grad_FD[i] rtol = 1e-4
+        end
+    end
+
+    @testset "engine" begin 
+        #Basic Brayton thermodynamic cycle to test derivatives
+        function JetEngineResiduals(x, p)
+            PR_t = x[1]
+            mdot_c = x[2]
+            R = typeof(PR_t)
+
+            z0 = p[1]
+            M0 = p[2]
+            PR = R(p[3])
+            Tt4 = R(p[4])
+            F_N = p[5]
+            
+            #Intake
+            g0 = IdealGasThermo.standard_atmosphere(z0)
+            g0 = Gas(R(g0.T), R(g0.P))
+            u0 = M0*sqrt(g0.T*g0.gamma*g0.R)
+            gt2 = deepcopy(g0) #Copy so as to not modify it
+            IdealGasThermo.gas_Mach!(gt2, M0, 0.0) #stagnation properties
+            #Compressor
+            gt3 = deepcopy(gt2) #Copy so as to not modify it
+            IdealGasThermo.compress!(gt3, PR)
+            #Burner
+            FAR,_ = IdealGasThermo.gas_burn(gt3,
+                "CH4",
+                R(298.15),
+                Tt4, 1.0, 0.0)
+            gt4 = IdealGasThermo.fuel_combustion(gt3,
+                "CH4", R(298.15), FAR,
+                1.0, 0.0)
+            #Turbine
+            gt5 = deepcopy(gt4) #Make a copy to avoid modifying it
+            IdealGasThermo.expand!(gt5, PR_t) #Expand in turbine
+            #Nozzle
+            g6 = deepcopy(gt5) #Make a copy to avoid modifying it
+            PR_n = gt2.P / gt5.P #Nozzle pressure ratio
+            IdealGasThermo.expand!(g6, PR_n)
+
+            #Residuals
+            u = sqrt(2 * (gt5.h - g6.h))
+            Fsp = (1 + FAR)*u - u0
+            
+            return [F_N - mdot_c*Fsp; gt3.h - gt2.h - (1+FAR)*(gt4.h - gt5.h)] #Thrust and shaft power residuals
+        end
+        x0 = [0.5, 1.0]
+        p = [1e4, 0.8, 10.0, 1700.0, 1e4]
+        f(x) = JetEngineResiduals(x, p)
+        J = ForwardDiff.jacobian(f, x0)
+
+        #Compare gradient to finite differences
+        J_FD = FDjacobian(f, x0)
+        for i in 1:2
+            for j in 1:length(x0)
+                @test J[i, j] ≈ J_FD[i, j] rtol = 1e-4
+            end
+        end
+
+        #Solve problem for PR_t and mdot_c
+        eps = 1e-6
+        f0 = [1.0, 1.0]
+        x = x0
+        while maximum(abs.(f0)) > eps #Use a basic Newton's method
+            f0 = f(x)
+            J = ForwardDiff.jacobian(f, x)
+            dx = -J\f0
+            x = x + dx
+        end
+        x_check = [0.6183259629412734, 10.459646582243932] #Validated against a basic turbojet model
+        for (i,xi) in enumerate(x)
+            @test xi ≈ x_check[i] rtol = 1e-6
+        end
+    end
 end
