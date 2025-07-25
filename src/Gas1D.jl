@@ -4,7 +4,7 @@
 Type that represents single component gases.
 """
 mutable struct Gas1D{R<:Real} <: AbstractGas
-    comp_sp::composite_species
+    comp_sp::composite_species{R}
     P::R # [Pa]
     T::R # [K]
     Tarray::MVector{8,R} # Temperature array to make calcs allocation free
@@ -100,7 +100,7 @@ function Base.setproperty!(gas::Gas1D, sym::Symbol, val::R) where R<:Real
         end
 
         P = getfield(gas, :P)
-        MW = sp.MW / 1000.0 # kg/mol
+        MW = R(sp.MW / 1000.0) # kg/mol
 
         setfield!(gas, :cp, Cp(TT, A) / MW)
         setfield!(gas, :h, h(TT, A) / MW)
@@ -122,7 +122,7 @@ function Base.setproperty!(gas::Gas1D, sym::Symbol, val::R) where R<:Real
     nothing
 end
 
-# Overload Base.getproperty for convinence
+# Overload Base.getproperty for convenience
 function Base.getproperty(gas::Gas1D, sym::Symbol)
     if sym === :h_T # dh/dT
         return getfield(gas, :cp)

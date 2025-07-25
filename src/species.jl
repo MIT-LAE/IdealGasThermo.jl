@@ -10,13 +10,13 @@ the molecular weight `MW` and the heat of formation `Hf` (J/mol) for a given che
 
 See [here](https://shepherd.caltech.edu/EDL/PublicResources/sdt/formats/nasa.html) for typical data format
 """
-struct species{R<:Real} <: AbstractSpecies
+struct species <: AbstractSpecies
     name::String
-    Tmid::R
-    alow::Array{R,1}
-    ahigh::Array{R,1}
-    MW::R
-    Hf::R
+    Tmid::Float64
+    alow::Array{Float64,1}
+    ahigh::Array{Float64,1}
+    MW::Float64
+    Hf::Float64
     formula::AbstractString
 end
 
@@ -52,8 +52,8 @@ function generate_composite_species(
     AHIGH = reduce(hcat, spdict.ahigh)
     alow = ALOW * Xi
     ahigh = AHIGH * Xi
-    MW = dot(spdict.MW, Xi)
-    Hf = dot(spdict.Hf, Xi)
+    MW = R(dot(spdict.MW, Xi))
+    Hf = R(dot(spdict.Hf, Xi))
     # Need to account for the entropy of mixing:
     Δs_mix = 0.0
     for i in eachindex(Xi)
@@ -78,6 +78,6 @@ function generate_composite_species(
             push!(d, spdict.name[i] => Xi[i])
         end
     end
-    return composite_species(name, Tmid, alow, ahigh, MW, Hf, d)
+    return composite_species{R}(name, Tmid, alow, ahigh, MW, Hf, d)
 
 end  # function generate_composite_species
