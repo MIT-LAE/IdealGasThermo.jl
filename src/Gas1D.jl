@@ -3,16 +3,16 @@
 
 Type that represents single component gases.
 """
-mutable struct Gas1D <: AbstractGas
+mutable struct Gas1D{R<:Real} <: AbstractGas
     comp_sp::composite_species
-    P::Float64 # [Pa]
-    T::Float64 # [K]
-    Tarray::MVector{8,Float64} # Temperature array to make calcs allocation free
+    P::R # [Pa]
+    T::R # [K]
+    Tarray::MVector{8,R} # Temperature array to make calcs allocation free
 
-    cp::Float64 #[J/kg/K]
-    cp_T::Float64 # derivative dcp/dT
-    h::Float64  #[J/kg]
-    ϕ::Float64  #[J/kg/K] Entropy complement fn ϕ(T) = ∫ cp(T)/T dT from Tref to T
+    cp::R #[J/kg/K]
+    cp_T::R # derivative dcp/dT
+    h::R  #[J/kg]
+    ϕ::R  #[J/kg/K] Entropy complement fn ϕ(T) = ∫ cp(T)/T dT from Tref to T
     #Intentionally not storing s since log is expensive so only calculated when requested
 
 end
@@ -26,7 +26,7 @@ Dry Air at standard conditions
 See also [`Gas1D`](@ref).
 """
 function Gas1D()
-    Gas1D(
+    Gas1D{Float64}(
         DryAir,
         Pstd,
         Tstd,
@@ -47,7 +47,7 @@ Dry Air at standard conditions
 See also [`Gas1D`](@ref).
 """
 function Gas1D(sp::composite_species)
-    Gas1D(
+    Gas1D{Float64}(
         sp,
         Pstd,
         Tstd,
@@ -59,7 +59,31 @@ function Gas1D(sp::composite_species)
     )
 end
 
-function Base.setproperty!(gas::Gas1D, sym::Symbol, val::Float64)
+
+"""
+    Gas1D(T, P)
+
+Constructor that returns a `Gas` type representing 
+Dry Air at a desired temperature and pressure. It inherits the 
+field types from the inputs and is recommended for 
+use with ForwardDiff.
+
+See also [`Gas1D`](@ref).
+"""
+function Gas1D(T::R, P::R) where R<:Real
+    Gas1D{R}(
+        DryAir,
+        P,
+        T,
+        Tarray(T),
+        Cp(T, DryAir),
+        (Cp(T + one(R), DryAir) - Cp(T - one(R), DryAir)) / 2.0,
+        h(T, DryAir),
+        s(T, P, DryAir),
+    )
+end
+
+function Base.setproperty!(gas::Gas1D, sym::Symbol, val::R) where R<:Real
     ## Setting Temperature
     if sym === :T
         setfield!(gas, :T, val) # first set T

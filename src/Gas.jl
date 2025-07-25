@@ -77,6 +77,16 @@ function Gas()
 
 end
 
+"""
+    Gas(T, P)
+
+Constructor that returns a `Gas` type representing 
+Air at a desired temperature and pressure. It inherits
+the field types from the inputs and is recommended for 
+use with ForwardDiff.
+
+See also [`Gas`](@ref).
+"""
 function Gas(T::R, P::R) where R<:Real
     i = findfirst(x -> x == "Air", spdict.name)
     Air = spdict[i]
