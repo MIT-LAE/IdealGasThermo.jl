@@ -8,6 +8,7 @@ const default_thermo_path = joinpath(__Gasroot__, "data/thermo.inp")
 using LinearAlgebra
 using StaticArrays
 using Printf
+using ForwardDiff
 
 export Gas, set_h!, set_hP!, set_TP!, set_Δh!
 

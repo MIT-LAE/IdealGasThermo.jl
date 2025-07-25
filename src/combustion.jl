@@ -563,9 +563,8 @@ function fuel_combustion(
     #Find the vectors with the fuel mole and mass fractions
     Xfuel = Xidict2Array(Dict([(fuel, 1.0)])) #Mole fraction
     Yfuel = X2Y(Xfuel) #Mass fraction
-    gas_fuel = Gas(Yfuel) #Create a fuel gas to calculate enthalpy
-
-    set_TP!(gas_fuel, Tf, gas_ox.P) #Set the fuel gas at the correct conditions
+    gas_fuel = Gas(Tf, gas_ox.P) #Create a fuel gas to calculate enthalpy
+    gas_fuel.Y = Yfuel
 
     #Find product composition and mole and mass fractions
     Xprod_dict = vitiated_mixture(fuel_sps, gas_sps, FAR, ηburn)
@@ -573,14 +572,15 @@ function fuel_combustion(
     Yprod = X2Y(Xprod)
 
     #Initialize output 
-    gas_prod = Gas(Yprod)
+    gas_prod = Gas(gas_ox.T, gas_ox.P) #Initialize with oxidizer properties
+    gas_prod.Y = Yprod #Set correct composition
 
     # Combustion enthalpy calculations
     #enthalpy before reaction = enthalpy after reaction
     h0 = (gas_ox.h + FAR * (gas_fuel.h - abs(hvap))) / (1 + FAR)
 
-    #Set the products at the correct enthalpy and pressure
-    set_hP!(gas_prod, h0, gas_ox.P)
+    #Set the products at the correct enthalpy
+    set_h!(gas_prod, h0)
     return gas_prod
 end
 
