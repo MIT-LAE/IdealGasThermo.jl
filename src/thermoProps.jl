@@ -134,3 +134,21 @@ function s(T, P, sp::AbstractSpecies)
     sᵒ = 𝜙(TT, a) - Runiv * log(P / Pstd)
     return sᵒ * 1000.0 / sp.MW
 end
+
+"""
+    𝜙(T, P, sp::AbstractSpecies)
+
+Calculates the entropy complement function 𝜙 for a species in J/K/kg
+"""
+function 𝜙(T::Real, sp::AbstractSpecies)
+    TT = Tarray(T)
+    if T < 1000.0
+        s = :alow
+    else
+        s = :ahigh
+    end
+    a = getfield(sp, s)
+    phi = 𝜙(TT, a)
+    return phi * 1000.0 / sp.MW
+end
+

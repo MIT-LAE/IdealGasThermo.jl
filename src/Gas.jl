@@ -70,7 +70,7 @@ function Gas()
         Cp(Tstd, Air),
         (Cp(Tstd + 1.0, Air) - Cp(Tstd - 1.0, Air)) / 2.0, #finite diff dCp/dT
         h(Tstd, Air),
-        s(Tstd, Pstd, Air),
+        𝜙(Tstd, Air),
         Y,
         Air.MW
     )
@@ -101,7 +101,7 @@ function Gas(T::R, P::R) where R<:Real
         Cp(T, Air),  # must return R
         (Cp(T + one(R), Air) - Cp(T - one(R), Air)) / (2one(R)),  # finite diff in R
         h(T, Air),   # must return R
-        s(T, P, Air), # must return R
+        𝜙(T, Air), # must return R
         SVector{Nspecies, R}(Y),
         Air.MW
     )

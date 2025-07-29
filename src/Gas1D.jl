@@ -34,7 +34,7 @@ function Gas1D()
         Cp(Tstd, DryAir),
         (Cp(Tstd + 1.0, DryAir) - Cp(Tstd - 1.0, DryAir)) / 2.0,
         h(Tstd, DryAir),
-        s(Tstd, Pstd, DryAir),
+        𝜙(Tstd, DryAir),
     )
 end
 
@@ -55,7 +55,7 @@ function Gas1D(sp::composite_species)
         Cp(Tstd, sp),
         (Cp(Tstd + 1.0, sp) - Cp(Tstd - 1.0, sp)) / 2.0,
         h(Tstd, sp),
-        s(Tstd, Pstd, sp),
+        𝜙(Tstd, sp),
     )
 end
 
@@ -81,7 +81,7 @@ function Gas1D(T::R, P::R) where R<:Real
         Cp(T, DA),
         (Cp(T + one(R), DA) - Cp(T - one(R), DA)) / 2.0,
         h(T, DA),
-        s(T, P, DA),
+        𝜙(T, DA),
     )
 end
 
