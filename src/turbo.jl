@@ -5,7 +5,7 @@
 
 Generic pressure ratio conversion. See [`compress`](@ref) and [`expand`](@ref)
 """
-function PressureRatio!(gas::AbstractGas, PR::R1, ηp::R2 = 1.0) where {R1<:Real, R2<:Real}
+function PressureRatio!(gas::AbstractGas, PR::Real, ηp::Real)
 
     T0 = gas.T
     ϕ0 = gas.ϕ
@@ -53,7 +53,7 @@ end
 Compression with an optional polytropic efficiency.PR should be ≥ 1.0.
 See also [`expand`](@ref).
 """
-function compress!(gas::AbstractGas, PR::R1, ηp::R2 = 1.0) where {R1<:Real, R2<:Real}
+function compress!(gas::AbstractGas, PR::Real, ηp::Real = 1.0)
 
     if PR < 1.0
         error("The specified pressure ratio (PR) to compress by needs to be ≥ 1.0.
@@ -68,7 +68,7 @@ end
 Expansion at a given polytropic efficiency. PR should be ≤ 1.0.
 See also [`compress`](@ref).
 """
-function expand!(gas::AbstractGas, PR::R1, ηp::R2 = 1.0) where {R1<:Real, R2<:Real}
+function expand!(gas::AbstractGas, PR::Real, ηp::Real = 1.0)
     if PR > 1.0
         error("The specified pressure ratio (PR) to compress by needs to be ≤ 1.0.
         Provided PR = $PR. Did you mean to use `compress`?")
@@ -81,7 +81,7 @@ end
 
 Calculates the gas state for a change in Mach number with an optional polytropic efficiency.
 """
-function gas_Mach!(gas::AbstractGas, M0::R1, M::R1, ηp::R2 = 1.0) where {R1<:Real, R2<:Real}
+function gas_Mach!(gas::AbstractGas, M0::Real, M::Real, ηp::Real = 1.0)
 
     itmax = 10
     ttol = 0.000001

@@ -300,9 +300,9 @@ Convenience function that finds fuel and oxidizer from thermo database
 function vitiated_mixture(
     fuel::AbstractString,
     oxidizer::AbstractString,
-    FAR::R1,
-    ηburn::R2 = 1.0,
-) where {R1 <: Real, R2 <: Real}
+    FAR::Real,
+    ηburn::Real = 1.0,
+)
 
     fuel = species_in_spdict(fuel)
     oxidizer = species_in_spdict(oxidizer)
@@ -432,10 +432,10 @@ end  # function vitiated_species
 function vitiated_species(
     fuel::AbstractString,
     oxidizer::AbstractString,
-    FAR::R1;
-    ηburn::R2 = 1.0,
+    FAR::Real;
+    ηburn::Real = 1.0,
     name::AbstractString = "vitiated species",
-) where {R1 <: Real, R2 <: Real}
+)
 
     fuel = species_in_spdict(fuel)
     oxidizer = species_in_spdict(oxidizer)
@@ -539,11 +539,11 @@ efficiency and the fuel enthalpy of vaporization as optional inputs.
 function fuel_combustion(
     gas_ox::AbstractGas,
     fuel::String,
-    Tf::R1,
-    FAR::R2,
-    ηburn::R3 = 1.0,
-    hvap::R4 = 0.0
-) where  {R1 <: Real, R2 <: Real, R3 <: Real, R4 <: Real}
+    Tf::Real,
+    FAR::Real,
+    ηburn::Real = 1.0,
+    hvap::Real = 0.0
+)
     #Create variables corresponding to the oxidizer and fuel species and mixtures
     fuel_sps = species_in_spdict(fuel)
 
@@ -594,11 +594,11 @@ It includes the combustion efficiency and the fuel enthalpy of vaporization as o
 function gas_burn(
     gas_ox::AbstractGas,
     fuel::String,
-    Tf::R1,
-    Tburn::R2,
-    ηburn::R3 = 1.0,
-    hvap::R4 = 0.0
-) where {R1 <: Real, R2 <: Real, R3 <: Real, R4 <: Real}
+    Tf::Real,
+    Tburn::Real,
+    ηburn::Real = 1.0,
+    hvap::Real = 0.0
+)
 
     #Create variables corresponding to the oxidizer and fuel species and mixtures
     fuel_sps = species_in_spdict(fuel)
