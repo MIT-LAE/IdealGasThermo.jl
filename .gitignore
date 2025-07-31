@@ -4,3 +4,4 @@ docs/build/*
 *.code-workspace
 .VSCodeCounter/*
 *png
+*json
