@@ -177,7 +177,7 @@ function Base.getproperty(gas::Gas, sym::Symbol)
     end
 end
 
-function Base.setproperty!(gas::Gas{N, R1}, sym::Symbol, val::R2) where {N, R1<:Real, R2<:Real}
+function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::Real) where {N, R<:Real}
     if sym === :T
         setfield!(gas, :T, val)
         setfield!(gas, :Tarray, Tarray!(val, gas.Tarray))
@@ -185,10 +185,10 @@ function Base.setproperty!(gas::Gas{N, R1}, sym::Symbol, val::R2) where {N, R1<:
 
         A = val < 1000 ? view(spdict.alow, :) : view(spdict.ahigh, :)
 
-        cptemp = zero(R1)
-        htemp = zero(R1)
-        ϕtemp = zero(R1)
-        cp_Ttemp = zero(R1)
+        cptemp = zero(R)
+        htemp = zero(R)
+        ϕtemp = zero(R)
+        cp_Ttemp = zero(R)
 
         for (Yᵢ, a, m) in zip(gas.Y, A, spdict.MW)
             if Yᵢ != 0
@@ -208,7 +208,7 @@ function Base.setproperty!(gas::Gas{N, R1}, sym::Symbol, val::R2) where {N, R1<:
         setfield!(gas, :P, val)
         TT = gas.Tarray
         A = TT[4] < 1000 ? view(spdict.alow, :) : view(spdict.ahigh, :)
-        ϕtemp = zero(R1)
+        ϕtemp = zero(R)
 
         for (Yᵢ, a, m) in zip(gas.Y, A, spdict.MW)
             if Yᵢ != 0
@@ -312,18 +312,17 @@ with composition:
      ΣYᵢ     1.000     28.965
 ```
 """
-function set_h!(gas::AbstractGas, hspec::R) where R <: Real
+function set_h!(gas::AbstractGas, hspec::Real)
     T = gas.T
     dT = T
 
     itermax = 20
-    eps = convert(R, ϵ)  # tolerance with correct type
     for i = 1:itermax # abs(dT) > ϵ
         res = gas.h - hspec # Residual
         res_t = gas.cp  # ∂R/∂T = ∂h/∂T = cp
         dT = -res / res_t # Newton step
 
-        if abs(dT) ≤ eps
+        if abs(dT) ≤ ϵ
             break
         end
         #Prevent limit cycles if the iteration count is high
@@ -334,14 +333,14 @@ function set_h!(gas::AbstractGas, hspec::R) where R <: Real
         gas.T = T
     end
 
-    if abs(dT) > eps
+    if abs(dT) > ϵ
         error(
             "Error: `set_h!` did not converge:\ngas=",
             print(gas),
             "\n\nabs(dT) = ",
             abs(dT),
             " > ϵ (",
-            eps,
+            ϵ,
             ")",
         )
     end
@@ -355,7 +354,7 @@ Sets the gas state based on a specified change in enthalpy (Δh) [J/mol],
 and a given polytropic efficiency. This represents adding or removing some work
 from the gas.
 """
-function set_Δh!(gas::AbstractGas, Δhspec::R, ηp::R = 1.0) where R <: Real
+function set_Δh!(gas::AbstractGas, Δhspec::Real, ηp::Real = 1.0)
     P0 = gas.P
     ϕ0 = gas.ϕ
     hf = gas.h + Δhspec
@@ -368,7 +367,7 @@ end
 
 Calculates state of the gas given enthalpy and pressure (h,P)
 """
-function set_hP!(gas::AbstractGas, hspec::R, P::R) where R <: Real
+function set_hP!(gas::AbstractGas, hspec::Real, P::Real)
     set_h!(gas, hspec)
     gas.P = P
     return gas
@@ -400,7 +399,7 @@ with composition:
 ```
 
 """
-function set_TP!(gas::AbstractGas, T::R, P::R) where R <: Real
+function set_TP!(gas::AbstractGas, T::Real, P::Real)
     gas.T = T
     gas.P = P
     return gas

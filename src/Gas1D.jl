@@ -85,7 +85,7 @@ function Gas1D(T::R, P::R) where R<:Real
     )
 end
 
-function Base.setproperty!(gas::Gas1D, sym::Symbol, val::R) where R<:Real
+function Base.setproperty!(gas::Gas1D{R}, sym::Symbol, val::Real) where {R<:Real}
     ## Setting Temperature
     if sym === :T
         setfield!(gas, :T, val) # first set T

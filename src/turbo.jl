@@ -126,7 +126,7 @@ end
 Calculates the resulting gas after two gases (gas1 and gas2) are mixed at constant pressure, with a mass ratio
 mratio = mass of gas2 / mass gas1.
 """
-function gas_mixing(gas1::AbstractGas, gas2::AbstractGas, mratio::R) where R<:Real
+function gas_mixing(gas1::AbstractGas, gas2::AbstractGas, mratio::Real)
 
     #Extract dictionaries with gas molar fractions
     if gas1 isa Gas1D
