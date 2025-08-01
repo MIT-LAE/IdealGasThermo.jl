@@ -537,30 +537,30 @@ for a given fuel type, oxidizer gas at a given enthalpy, and FAR. It includes th
 efficiency and the fuel enthalpy of vaporization as optional inputs. 
 """
 function fuel_combustion(
-    gas_ox::AbstractGas,
+    gas_ox::Gas{N, R},
     fuel::String,
     Tf::Real,
     FAR::Real,
     ηburn::Real = 1.0,
     hvap::Real = 0.0
-)
+) where {N, R<:Real}
     #Create variables corresponding to the oxidizer and fuel species and mixtures
     fuel_sps = species_in_spdict(fuel)
 
     #Find oxidizer composition
     if gas_ox isa Gas1D
-        gas_sps = gas_ox.comp_sp
+        gas_sps = gas_ox.comp_sp::composite_species{R}
     else
         if "Air" in keys(gas_ox.Xdict)
-            Xin = Xair
+            Xin = Xair_typed(R)::Dict{String, R}
         else
-            Xin = gas_ox.Xdict
+            Xin = gas_ox.Xdict::Dict{String, R}
         end
-        gas_sps = generate_composite_species(IdealGasThermo.Xidict2Array(Xin))
+        gas_sps = generate_composite_species(IdealGasThermo.Xidict2Array(Xin))::composite_species{R}
     end
 
     #Find the vectors with the fuel mole and mass fractions
-    Xfuel = Xidict2Array(Dict([(fuel, 1.0)])) #Mole fraction
+    Xfuel = Xidict2Array(Dict{String, R}([(fuel, R(1.0))])) #Mole fraction
     Yfuel = X2Y(Xfuel) #Mass fraction
     gas_fuel = Gas(Tf, gas_ox.P) #Create a fuel gas to calculate enthalpy
     gas_fuel.Y = Yfuel
@@ -592,13 +592,13 @@ products for a given fuel type, oxidizer gas at a given enthalpy, and desired co
 It includes the combustion efficiency and the fuel enthalpy of vaporization as optional inputs. 
 """
 function gas_burn(
-    gas_ox::AbstractGas,
+    gas_ox::Gas{N, R},
     fuel::String,
     Tf::Real,
     Tburn::Real,
     ηburn::Real = 1.0,
     hvap::Real = 0.0
-)
+) where {N, R<:Real}
 
     #Create variables corresponding to the oxidizer and fuel species and mixtures
     fuel_sps = species_in_spdict(fuel)
@@ -608,15 +608,15 @@ function gas_burn(
         gas_sps = gas_ox.comp_sp
     else
         if "Air" in keys(gas_ox.Xdict)
-            Xin = Xair
+            Xin = Xair_typed(R)::Dict{String, R}
         else
-            Xin = gas_ox.Xdict
+            Xin = gas_ox.Xdict::Dict{String, R}
         end
-        gas_sps = generate_composite_species(IdealGasThermo.Xidict2Array(Xin))
+        gas_sps = generate_composite_species(IdealGasThermo.Xidict2Array(Xin))::composite_species{R}
     end
 
     #Find the vectors with the fuel mole and mass fractions
-    Xfuel = Xidict2Array(Dict([(fuel, 1.0)])) #Mole fraction
+    Xfuel = Xidict2Array(Dict{String, R}([(fuel, 1.0)])) #Mole fraction
     Yfuel = X2Y(Xfuel) #Mass fraction
     gas_fuel = Gas(Tf, gas_ox.P)
     gas_fuel.Y = Yfuel #Create a fuel gas to calculate enthalpy
@@ -630,7 +630,7 @@ function gas_burn(
 
     names = ["CO2", "H2O", "N2", "O2"]
     ΔX = [nCO2, nH2O, nN2, nO2]
-    Xdict = Dict(zip(names, ΔX))
+    Xdict = Dict{String, R}(zip(names, ΔX))
 
     Xc = Xidict2Array(Xdict)
     Yc = X2Y(Xc) #mass fraction change in combustion for FAR = 1
