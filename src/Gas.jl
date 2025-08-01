@@ -108,7 +108,7 @@ function Gas(T::R, P::R) where R<:Real
 end
 
 # Overload Base.getproperty for convenience
-function Base.getproperty(gas::Gas, sym::Symbol)
+function Base.getproperty(gas::Gas{N, R}, sym::Symbol) where {N, R<:Real}
     if sym === :h_T # dh/dT
         return getfield(gas, :cp)
     elseif sym === :ϕ_T # dϕ/dT
@@ -139,22 +139,22 @@ function Base.getproperty(gas::Gas, sym::Symbol)
         # H += getproperty(gas, :h) * getproperty(gas, :MW)/1000.0
         return H
     elseif sym === :R #specific gas constant
-        return Runiv / getproperty(gas, :MW) * 1000.0
+        return R(Runiv / gas.MW * 1000.0)::R #Took some effort to make this stable!
     elseif sym === :γ
-        R = getproperty(gas, :R)
+        Rgas = R(getproperty(gas, :R))::R
         cp = getproperty(gas, :cp)
-        return cp / (cp - R)
+        return R(cp / (cp - Rgas))::R
     elseif sym === :gamma
         return getproperty(gas, :γ)
     elseif sym === :ρ
-        R = getproperty(gas, :R)
+        Rgas = R(getproperty(gas, :R))::R
         T = getfield(gas, :T)
         P = getfield(gas, :P)
-        return P / (R * T)
+        return R(P / (Rgas * T))::R
     elseif sym === :rho
         return getproperty(gas, :ρ)
     elseif sym === :ν
-        return 1 / getproperty(gas, :ρ)
+        return R(1 / getproperty(gas, :ρ))::R
     elseif sym === :nu
         return getproperty(gas, :ν)
     elseif sym === :X # Get mole fractions

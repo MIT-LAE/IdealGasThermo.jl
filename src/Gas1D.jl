@@ -125,7 +125,7 @@ function Base.setproperty!(gas::Gas1D{R}, sym::Symbol, val::Real) where {R<:Real
 end
 
 # Overload Base.getproperty for convenience
-function Base.getproperty(gas::Gas1D, sym::Symbol)
+function Base.getproperty(gas::Gas1D{R}, sym::Symbol) where R<:Real
     if sym === :h_T # dh/dT
         return getfield(gas, :cp)
     elseif sym === :ϕ_T # dϕ/dT
@@ -137,28 +137,28 @@ function Base.getproperty(gas::Gas1D, sym::Symbol)
     elseif sym === :TP
         return [getfield(gas, :T), getfield(gas, :P)]
     elseif sym === :s
-        Rgas = Runiv / getfield(gas, :comp_sp).MW * 1000.0
+        Rgas = R(Runiv) / getfield(gas, :comp_sp).MW * 1000.0
         return getfield(gas, :ϕ) - Rgas * log(getfield(gas, :P) / Pstd)
     elseif sym === :MW
         sp = getfield(gas, :comp_sp)
         return sp.MW
     elseif sym === :R #specific gas constant
-        return Runiv / getproperty(gas, :MW) * 1000.0
+        return R(Runiv / getproperty(gas, :MW) * 1000.0)::R
     elseif sym === :γ
-        R = getproperty(gas, :R)
+        Rgas = getproperty(gas, :R)
         cp = getproperty(gas, :cp)
-        return cp / (cp - R)
+        return R(cp / (cp - Rgas))::R
     elseif sym === :gamma
         return getproperty(gas, :γ)
     elseif sym === :ρ
-        R = getproperty(gas, :R)
+        Rgas = getproperty(gas, :R)
         T = getfield(gas, :T)
         P = getfield(gas, :P)
-        return P / (R * T)
+        return R(P / (Rgas * T))::R
     elseif sym === :rho
         return getproperty(gas, :ρ)
     elseif sym === :ν
-        return 1 / getproperty(gas, :ρ)
+        return R(1 / getproperty(gas, :ρ))::R
     elseif sym === :nu
         return getproperty(gas, :ν)
     else
