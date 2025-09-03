@@ -25,9 +25,8 @@ Constructs `Gas` with given composition `Y`
 """
 function Gas(Y::AbstractVector{R}) where {R<:Real}
   
-    gas = Gas(Pstd, Tstd)
+    gas = Gas(R(Tstd), R(Pstd))
     gas.Y = SVector{Nspecies, R}(Y)
-    set_TP!(gas, Tstd, Pstd) #setting temperature and pressure to recalculate thermodynamic properties
     return gas
 end
 
