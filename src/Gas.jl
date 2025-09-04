@@ -156,6 +156,11 @@ function Base.getproperty(gas::Gas{N, R}, sym::Symbol) where {N, R<:Real}
         return R(1 / getproperty(gas, :ρ))::R
     elseif sym === :nu
         return getproperty(gas, :ν)
+    elseif sym === :a #Speed of sound
+        Rgas = R(getproperty(gas, :R))::R
+        T = getfield(gas, :T)
+        γ = getproperty(gas, :γ)
+        return R(sqrt(γ * Rgas * T))::R
     elseif sym === :X # Get mole fractions
         Y = getfield(gas, :Y)
         MW = spdict.MW

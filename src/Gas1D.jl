@@ -161,6 +161,11 @@ function Base.getproperty(gas::Gas1D{R}, sym::Symbol) where R<:Real
         return R(1 / getproperty(gas, :ρ))::R
     elseif sym === :nu
         return getproperty(gas, :ν)
+    elseif sym === :a #Speed of sound
+        Rgas = R(getproperty(gas, :R))::R
+        T = getfield(gas, :T)
+        γ = getproperty(gas, :γ)
+        return R(sqrt(γ * Rgas * T))::R
     else
         return getfield(gas, sym)
     end
