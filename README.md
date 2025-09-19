@@ -11,5 +11,3 @@ This package is primarily intended for use in gas turbine cycle calculations wit
 This package also introduces a method for fast calculations of thermodynamic properties of mixtures with fixed composition by calculating an equivalent polynomial representation of the mixture. See docs for theory and performance details. 
 
 This package uses parametric typing to make it compatible with automatic forward-mode differentiation.
-
- 
