@@ -1,22 +1,20 @@
 abstract type AbstractGas end
 """
-    Gas{N}
+    Gas{N, R}
 
 A type that represents an ideal gas that is calorically perfect 
 i.e. ``c_p(T)``, ``h(T)``, ``\\phi(T)`` and ``s(T,P)``.
 """
-mutable struct Gas{N} <: AbstractGas
-    P::Float64 # [Pa]
-    T::Float64 # [K]
-    Tarray::MVector{8,Float64} # Temperature array to make calcs allocation free
-
-    cp::Float64 #[J/mol/K]
-    cp_T::Float64 # derivative dcp/dT
-    h::Float64  #[J/mol]
-    ϕ::Float64  #[J/mol/K] Entropy complement fn ϕ(T) = ∫ cp(T)/T dT from Tref to T
-
-    Y::MVector{N,Float64} # Mass fraction of species
-    MW::Float64 # Molecular weight [g/mol]
+mutable struct Gas{N, R<:Real} <: AbstractGas
+    P::R                   # Pressure [Pa]
+    T::R                   # Temperature [K]
+    Tarray::MVector{8, R}  # Preallocated temp array
+    cp::R                  # Heat capacity [J/mol/K]
+    cp_T::R                # Derivative dcp/dT
+    h::R                   # Enthalpy [J/mol]
+    ϕ::R                   # Entropy complement function
+    Y::MVector{N, R}       # Mass fractions
+    MW::R                  # Molecular weight [g/mol]
 end
 
 """
@@ -25,10 +23,10 @@ end
 Constructs `Gas` with given composition `Y`
 
 """
-function Gas(Y::AbstractVector)
-    gas = Gas()
-    gas.Y = convert(Vector{Float64}, Y)
-    set_TP!(gas, Tstd, Pstd) #setting temperature and pressure to recalculate thermodynamic properties
+function Gas(Y::AbstractVector{R}) where {R<:Real}
+  
+    gas = Gas(R(Tstd), R(Pstd))
+    gas.Y = SVector{Nspecies, R}(Y)
     return gas
 end
 
@@ -64,22 +62,52 @@ function Gas()
     Air = spdict[i]
     Y = zeros(Nspecies)
     Y[i] = 1.0
-    Gas{Nspecies}(
+    Gas{Nspecies, Float64}(
         Pstd,
         Tstd,
         Tarray(Tstd),
         Cp(Tstd, Air),
         (Cp(Tstd + 1.0, Air) - Cp(Tstd - 1.0, Air)) / 2.0, #finite diff dCp/dT
         h(Tstd, Air),
-        s(Tstd, Pstd, Air),
+        𝜙(Tstd, Air),
         Y,
-        Air.MW,
+        Air.MW
     )
 
 end
 
+"""
+    Gas(T, P)
+
+Constructor that returns a `Gas` type representing 
+Air at a desired temperature and pressure. It inherits
+the field types from the inputs and is recommended for 
+use with ForwardDiff.
+
+See also [`Gas`](@ref).
+"""
+function Gas(T::R, P::R) where R<:Real
+    i = findfirst(x -> x == "Air", spdict.name)
+    Air = spdict[i]
+
+    Y = zeros(R, Nspecies)
+    Y[i] = one(R)
+
+    Gas{Nspecies, R}(
+        P,
+        T,
+        Tarray(T),  # must return Vector{R}
+        Cp(T, Air),  # must return R
+        (Cp(T + one(R), Air) - Cp(T - one(R), Air)) / (2one(R)),  # finite diff in R
+        h(T, Air),   # must return R
+        𝜙(T, Air), # must return R
+        SVector{Nspecies, R}(Y),
+        Air.MW
+    )
+end
+
 # Overload Base.getproperty for convenience
-function Base.getproperty(gas::Gas, sym::Symbol)
+function Base.getproperty(gas::Gas{N, R}, sym::Symbol) where {N, R<:Real}
     if sym === :h_T # dh/dT
         return getfield(gas, :cp)
     elseif sym === :ϕ_T # dϕ/dT
@@ -110,24 +138,29 @@ function Base.getproperty(gas::Gas, sym::Symbol)
         # H += getproperty(gas, :h) * getproperty(gas, :MW)/1000.0
         return H
     elseif sym === :R #specific gas constant
-        return Runiv / getproperty(gas, :MW) * 1000.0
+        return R(Runiv / gas.MW * 1000.0)::R #Took some effort to make this stable!
     elseif sym === :γ
-        R = getproperty(gas, :R)
+        Rgas = R(getproperty(gas, :R))::R
         cp = getproperty(gas, :cp)
-        return cp / (cp - R)
+        return R(cp / (cp - Rgas))::R
     elseif sym === :gamma
         return getproperty(gas, :γ)
     elseif sym === :ρ
-        R = getproperty(gas, :R)
+        Rgas = R(getproperty(gas, :R))::R
         T = getfield(gas, :T)
         P = getfield(gas, :P)
-        return P / (R * T)
+        return R(P / (Rgas * T))::R
     elseif sym === :rho
         return getproperty(gas, :ρ)
     elseif sym === :ν
-        return 1 / getproperty(gas, :ρ)
+        return R(1 / getproperty(gas, :ρ))::R
     elseif sym === :nu
         return getproperty(gas, :ν)
+    elseif sym === :a #Speed of sound
+        Rgas = R(getproperty(gas, :R))::R
+        T = getfield(gas, :T)
+        γ = getproperty(gas, :γ)
+        return R(sqrt(γ * Rgas * T))::R
     elseif sym === :X # Get mole fractions
         Y = getfield(gas, :Y)
         MW = spdict.MW
@@ -148,148 +181,102 @@ function Base.getproperty(gas::Gas, sym::Symbol)
     end
 end
 
-
-"""
-    Base.setproperty!(gas::Gas, s::Symbol, val)
-
-"""
-function Base.setproperty!(gas::Gas, sym::Symbol, val::Float64)
-    ## Setting Temperature
+function Base.setproperty!(gas::Gas{N, R}, sym::Symbol, val::Real) where {N, R<:Real}
     if sym === :T
-        setfield!(gas, :T, val) # first set T
-        setfield!(gas, :Tarray, Tarray!(val, getfield(gas, :Tarray))) # update Tarray
-        TT = view(getfield(gas, :Tarray), :) # Just convenience
-        # Next set the cp, h and s of the gas
-        ## Get the right coefficients 
-        ## (assumes Tmid is always 1000.0. Check performed in readThermo.jl.):
-        if val < 1000.0 #Value given is the desired temperature
-            A = view(spdict.alow, :)
-        else
-            A = view(spdict.ahigh, :)
-        end
-        ## Initialize temporary vars
-        cptemp = 0.0
-        htemp = 0.0
-        ϕtemp = 0.0
-        cp_Ttemp = 0.0
+        setfield!(gas, :T, val)
+        setfield!(gas, :Tarray, Tarray!(val, gas.Tarray))
+        TT = view(gas.Tarray, :)
 
-        P = getfield(gas, :P)
-        Y = getfield(gas, :Y)
-        MW = view(spdict.MW, :) # g/mol
-        # Go through every species where mass fraction is not zero
-        @inbounds for (Yᵢ, a, m) in zip(Y, A, MW)
-            if Yᵢ != 0.0
-                cptemp = cptemp + Yᵢ * Cp(TT, a) / m
-                htemp = htemp + Yᵢ * h(TT, a) / m
-                ϕtemp = ϕtemp + Yᵢ * 𝜙(TT, a) / m
-                cp_Ttemp = cp_Ttemp + Yᵢ * dCpdT(TT, a) / m
+        A = val < 1000 ? view(spdict.alow, :) : view(spdict.ahigh, :)
+
+        cptemp = zero(R)
+        htemp = zero(R)
+        ϕtemp = zero(R)
+        cp_Ttemp = zero(R)
+
+        for (Yᵢ, a, m) in zip(gas.Y, A, spdict.MW)
+            if Yᵢ != 0
+                cptemp   += Yᵢ * Cp(TT, a) / m
+                htemp    += Yᵢ * h(TT, a) / m
+                ϕtemp    += Yᵢ * 𝜙(TT, a) / m
+                cp_Ttemp += Yᵢ * dCpdT(TT, a) / m
             end
         end
 
-        setfield!(gas, :cp, cptemp * 1000.0)
-        setfield!(gas, :h, htemp * 1000.0)
-        setfield!(gas, :ϕ, ϕtemp * 1000.0)
-        setfield!(gas, :cp_T, cp_Ttemp * 1000.0)
+        setfield!(gas, :cp, cptemp * 1000)
+        setfield!(gas, :h, htemp * 1000)
+        setfield!(gas, :ϕ, ϕtemp * 1000)
+        setfield!(gas, :cp_T, cp_Ttemp * 1000)
 
-        ## Setting Pressure
     elseif sym === :P
         setfield!(gas, :P, val)
-        TT = view(getfield(gas, :Tarray), :) # Just convenience
-        # Next set s of the gas
-        ## Get the right coefficients 
-        ## (assumes Tmid is always 1000.0. Check performed in readThermo.jl.):
-        if TT[4] < 1000.0 #TT[4] is T
-            A = view(spdict.alow, :)
-        else
-            A = view(spdict.ahigh, :)
-        end
-        ## Initialize temporary vars
-        ϕtemp = 0.0
+        TT = gas.Tarray
+        A = TT[4] < 1000 ? view(spdict.alow, :) : view(spdict.ahigh, :)
+        ϕtemp = zero(R)
 
-        P = val
-        Y = view(getfield(gas, :Y), :)
-        MW = view(spdict.MW, :) # g/mol
-        # Go through every species where mass fraction is not zero
-        @inbounds for (Yᵢ, a, m) in zip(Y, A, MW)
-            if Yᵢ != 0.0
-                ϕtemp = ϕtemp + Yᵢ * 𝜙(TT, a) / m
+        for (Yᵢ, a, m) in zip(gas.Y, A, spdict.MW)
+            if Yᵢ != 0
+                ϕtemp += Yᵢ * 𝜙(TT, a) / m
             end
         end
 
-        setfield!(gas, :ϕ, ϕtemp * 1000.0)
+        setfield!(gas, :ϕ, ϕtemp * 1000)
 
     elseif sym === :h
         set_h!(gas, val)
     elseif sym === :TP
         set_TP!(gas, val[1], val[2])
     else
-        error("You tried setting gas.", sym, " to a ", typeof(val))
+        setfield!(gas, sym, val)
     end
-    # Note: intentionally not including other variables to prevent 
-    # users from trying to directly set h, s, cp, MW etc.
-    nothing
+    return nothing
 end
 
-function Base.setproperty!(gas::Gas, sym::Symbol, val::AbstractVector{Float64})
-    if sym === :Y # directly set mass fractions Y
-        n = length(getfield(gas, :Y))
-        setfield!(gas, :Y, MVector{n}(val))
-        setfield!(gas, :MW, MW(gas)) # Update the MW of the gas mixture
-        setfield!(gas, :T, gas.T) # Force update of h
-
-    elseif sym === :X # directly set mole fractions Y
-        n = length(getfield(gas, :Y))
-        Y = X2Y(val)
-        setfield!(gas, :Y, MVector{n}(Y))
-        setfield!(gas, :MW, MW(gas)) # Update the MW of the gas mixture
-        setfield!(gas, :T, gas.T) # Force update of h
-    else
-        error(
-            "Only mass factions Y can be set with an array.",
-            "\n       You tried to set gas.",
-            sym,
-            " to a ",
-            typeof(val),
-        )
-    end
-    nothing
-end
-
-function Base.setproperty!(gas::Gas, sym::Symbol, val::AbstractDict{String,Float64})
-    if sym === :Y # directly set mass fractions Y
-        # If dict provided set each species in the right order
-        names = spdict.name
-        Y = zeros(MVector{length(names),Float64})
-        for (key, value) in val
-            index = findfirst(x -> x == key, names)
-            Y[index] = value
-        end
-        setfield!(gas, :Y, Y)
-        setfield!(gas, :MW, MW(gas)) # Update the MW of the gas mixture
-    elseif sym === :X
-        names = spdict.name
-        X = zeros(MVector{length(names),Float64})
-        Y = zeros(MVector{length(names),Float64})
-        S = 0.0
-        for (key, value) in val
-            index = findfirst(x -> x == key, names)
-            S += value
-            X[index] = value
-        end
-        X = X ./ S
-        Y .= X2Y(X)
-        setfield!(gas, :Y, Y)
+function Base.setproperty!(gas::Gas{N, R1}, sym::Symbol, val::AbstractVector{<:R2}) where {N, R1<:Real, R2<:Real}
+    if sym === :Y
+        setfield!(gas, :Y, MVector{N, R1}(val))
         setfield!(gas, :MW, MW(gas))
+        gas.T = gas.T #Reset T
+    elseif sym === :X
+        Y = X2Y(val)
+        setfield!(gas, :Y, MVector{N, R1}(Y))
+        setfield!(gas, :MW, MW(gas))
+        gas.T = gas.T #Reset T
     else
-        error(
-            "Only mass factions Y can be set with a dict.",
-            "\n       You tried to set gas.",
-            sym,
-            " to a ",
-            typeof(val),
-        )
+        error("Only mass fractions Y/X can be set with a vector. Tried: $sym")
     end
-    nothing
+    return nothing
+end
+
+function Base.setproperty!(gas::Gas{N, R1}, sym::Symbol, val::AbstractDict{String, R2}) where {N, R1<:Real, R2<:Real}
+    names = spdict.name
+    Y = zeros(MVector{N, R1})
+
+    if sym === :Y
+        for (key, value) in val
+            idx = findfirst(==(key), names)
+            Y[idx] = value
+        end
+        gas.Y = Y
+        gas.T = gas.T #Reset T
+        gas.MW = MW(gas)
+
+    elseif sym === :X
+        X = zeros(MVector{N, R1})
+        S = zero(R1)
+        for (key, value) in val
+            idx = findfirst(==(key), names)
+            X[idx] = value
+            S += value
+        end
+        X ./= S
+        gas.Y = X2Y(X)
+        gas.T = gas.T #Reset T
+        gas.MW = MW(gas)
+    else
+        error("Only mass fractions Y/X can be set with a Dict. Tried: $sym")
+    end
+    return nothing
 end
 
 """
@@ -329,7 +316,7 @@ with composition:
      ΣYᵢ     1.000     28.965
 ```
 """
-function set_h!(gas::AbstractGas, hspec::Float64)
+function set_h!(gas::AbstractGas, hspec::Real)
     T = gas.T
     dT = T
 
@@ -371,7 +358,7 @@ Sets the gas state based on a specified change in enthalpy (Δh) [J/mol],
 and a given polytropic efficiency. This represents adding or removing some work
 from the gas.
 """
-function set_Δh!(gas::AbstractGas, Δhspec::Float64, ηp::Float64 = 1.0)
+function set_Δh!(gas::AbstractGas, Δhspec::Real, ηp::Real = 1.0)
     P0 = gas.P
     ϕ0 = gas.ϕ
     hf = gas.h + Δhspec
@@ -384,7 +371,7 @@ end
 
 Calculates state of the gas given enthalpy and pressure (h,P)
 """
-function set_hP!(gas::AbstractGas, hspec::Float64, P::Float64)
+function set_hP!(gas::AbstractGas, hspec::Real, P::Real)
     set_h!(gas, hspec)
     gas.P = P
     return gas
@@ -416,7 +403,7 @@ with composition:
 ```
 
 """
-function set_TP!(gas::AbstractGas, T::Float64, P::Float64)
+function set_TP!(gas::AbstractGas, T::Real, P::Real)
     gas.T = T
     gas.P = P
     return gas

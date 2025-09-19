@@ -8,7 +8,7 @@ Calculates cp of the given species in J/K/mol
 Cp0/R = a₁T⁻² + a₂T⁻¹ + a₃ + a₄T + a₅T² + a₆T³ + a₇T⁴
 ```
 """
-function Cp(Tarray::AbstractVector{T}, a::AbstractVector{T}) where {T}
+function Cp(Tarray::AbstractVector{T}, a::AbstractVector{T1}) where {T, T1}
     Cp_R = dot(view(a, 1:7), view(Tarray, 1:7))
     Cp = Cp_R * Runiv
     return Cp #J/K/mol
@@ -22,7 +22,7 @@ Returns the derivative dcp/dT [J/K²/mol]
 dCp0/dT = R(-2a1*T^-3 -a2*T^-2 + a4 + 2a5*T + 3a6*T^2 + 4a7*T^3)
 ```
 """
-function dCpdT(TT::AbstractVector{T}, a::AbstractVector{T}) where {T}
+function dCpdT(TT::AbstractVector{T}, a::AbstractVector{T1}) where {T, T1}
     dcp_RdT =
         -2 * a[1] * TT[1] * TT[2] - a[2] * TT[1] +
         a[4] +
@@ -44,7 +44,7 @@ H0/RT = -a1*T^-2 + a2*T^-1*ln(T) + a3 + a4*T/2 + a5*T^2/3 + a6*T^3/4 + a7*T^4/5 
       = -a1*T₁   + a2*T₂*T₈      + a3 + a4*T₄/2 + a5*T₅/3  + a6*T₆/4  + a7*T₇/5  + a₈*T₂
 ```
 """
-function h(TT::AbstractVector{type}, a::AbstractVector{type}) where {type}
+function h(TT::AbstractVector{type}, a::AbstractVector{type1}) where {type, type1}
     h_RT = -a[1] * TT[1] +
             a[2] * TT[8] * TT[2] +
             a[3] +
@@ -69,7 +69,7 @@ S0/R = -a1*T^-2/2 - a2*T^-1 + a3*ln(T) + a4*T + a5*T^2/2 + a6*T^3/3.0 + a7*T^4/4
      = -a1*T₁/2   - a2*T₂   + a3*T₈    + a4*T₄+ a5*T₅/2  + a6*T₆/3.0  + a7*T₇/4  + a₉   
 ```
 """
-function 𝜙(TT::AbstractVector{type}, a::AbstractVector{type}) where {type}
+function 𝜙(TT::AbstractVector{type}, a::AbstractVector{type1}) where {type, type1}
     so_R =
         -0.5 * a[1] * TT[1] - a[2] * TT[2] +
         a[3] * TT[8] +
@@ -134,3 +134,21 @@ function s(T, P, sp::AbstractSpecies)
     sᵒ = 𝜙(TT, a) - Runiv * log(P / Pstd)
     return sᵒ * 1000.0 / sp.MW
 end
+
+"""
+    𝜙(T, P, sp::AbstractSpecies)
+
+Calculates the entropy complement function 𝜙 for a species in J/K/kg
+"""
+function 𝜙(T::Real, sp::AbstractSpecies)
+    TT = Tarray(T)
+    if T < 1000.0
+        s = :alow
+    else
+        s = :ahigh
+    end
+    a = getfield(sp, s)
+    phi = 𝜙(TT, a)
+    return phi * 1000.0 / sp.MW
+end
+

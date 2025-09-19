@@ -13,4 +13,5 @@ const IdealGasThermo = IdealGasThermo
     include("unit_test_turbo.jl")
     include("unit_test_atmos.jl")
     include("unit_test_utils.jl")
+    include("unit_test_autodiff.jl")
 end

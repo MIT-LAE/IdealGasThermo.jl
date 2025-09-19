@@ -70,7 +70,7 @@ function readThermo(filename)
                 [coeffs[(i-1)*16+1:i*16] for i in range(1, 10, step = 1) if i != 8],
             )
 
-        Species[i] = species(sp, Tmid, a[1, :], a[2, :], MW, Hf, formula)
+        Species[i] = species(String(sp), Tmid, a[1, :], a[2, :], MW, Hf, formula)
     end
     return StructArray(Species)
 end

@@ -20,7 +20,6 @@ information about the gas mixture.
 ```@docs
 Gas
 Gas()
-Base.setproperty!(gas::Gas, sym::Symbol, val::Float64)
 ```
 
 ## Single component gases

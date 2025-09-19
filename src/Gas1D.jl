@@ -1,18 +1,18 @@
 """
-    Gas1D
+    Gas1D{R}
 
 Type that represents single component gases.
 """
-mutable struct Gas1D <: AbstractGas
-    comp_sp::composite_species
-    P::Float64 # [Pa]
-    T::Float64 # [K]
-    Tarray::MVector{8,Float64} # Temperature array to make calcs allocation free
+mutable struct Gas1D{R<:Real} <: AbstractGas
+    comp_sp::composite_species{R}
+    P::R # [Pa]
+    T::R # [K]
+    Tarray::MVector{8,R} # Temperature array to make calcs allocation free
 
-    cp::Float64 #[J/kg/K]
-    cp_T::Float64 # derivative dcp/dT
-    h::Float64  #[J/kg]
-    ϕ::Float64  #[J/kg/K] Entropy complement fn ϕ(T) = ∫ cp(T)/T dT from Tref to T
+    cp::R #[J/kg/K]
+    cp_T::R # derivative dcp/dT
+    h::R  #[J/kg]
+    ϕ::R  #[J/kg/K] Entropy complement fn ϕ(T) = ∫ cp(T)/T dT from Tref to T
     #Intentionally not storing s since log is expensive so only calculated when requested
 
 end
@@ -26,7 +26,7 @@ Dry Air at standard conditions
 See also [`Gas1D`](@ref).
 """
 function Gas1D()
-    Gas1D(
+    Gas1D{Float64}(
         DryAir,
         Pstd,
         Tstd,
@@ -34,7 +34,7 @@ function Gas1D()
         Cp(Tstd, DryAir),
         (Cp(Tstd + 1.0, DryAir) - Cp(Tstd - 1.0, DryAir)) / 2.0,
         h(Tstd, DryAir),
-        s(Tstd, Pstd, DryAir),
+        𝜙(Tstd, DryAir),
     )
 end
 
@@ -47,7 +47,7 @@ Dry Air at standard conditions
 See also [`Gas1D`](@ref).
 """
 function Gas1D(sp::composite_species)
-    Gas1D(
+    Gas1D{Float64}(
         sp,
         Pstd,
         Tstd,
@@ -55,11 +55,37 @@ function Gas1D(sp::composite_species)
         Cp(Tstd, sp),
         (Cp(Tstd + 1.0, sp) - Cp(Tstd - 1.0, sp)) / 2.0,
         h(Tstd, sp),
-        s(Tstd, Pstd, sp),
+        𝜙(Tstd, sp),
     )
 end
 
-function Base.setproperty!(gas::Gas1D, sym::Symbol, val::Float64)
+
+"""
+    Gas1D(T, P)
+
+Constructor that returns a `Gas` type representing 
+Dry Air at a desired temperature and pressure. It inherits the 
+field types from the inputs and is recommended for 
+use with ForwardDiff.
+
+See also [`Gas1D`](@ref).
+"""
+function Gas1D(T::R, P::R) where R<:Real
+    Xvec = Xidict2Array(Xair)
+    DA = generate_composite_species(R.(Xvec), "Dry Air")
+    Gas1D{R}(
+        DA,
+        P,
+        T,
+        Tarray(T),
+        Cp(T, DA),
+        (Cp(T + one(R), DA) - Cp(T - one(R), DA)) / 2.0,
+        h(T, DA),
+        𝜙(T, DA),
+    )
+end
+
+function Base.setproperty!(gas::Gas1D{R}, sym::Symbol, val::Real) where {R<:Real}
     ## Setting Temperature
     if sym === :T
         setfield!(gas, :T, val) # first set T
@@ -76,7 +102,7 @@ function Base.setproperty!(gas::Gas1D, sym::Symbol, val::Float64)
         end
 
         P = getfield(gas, :P)
-        MW = sp.MW / 1000.0 # kg/mol
+        MW = R(sp.MW / 1000.0) # kg/mol
 
         setfield!(gas, :cp, Cp(TT, A) / MW)
         setfield!(gas, :h, h(TT, A) / MW)
@@ -98,8 +124,8 @@ function Base.setproperty!(gas::Gas1D, sym::Symbol, val::Float64)
     nothing
 end
 
-# Overload Base.getproperty for convinence
-function Base.getproperty(gas::Gas1D, sym::Symbol)
+# Overload Base.getproperty for convenience
+function Base.getproperty(gas::Gas1D{R}, sym::Symbol) where R<:Real
     if sym === :h_T # dh/dT
         return getfield(gas, :cp)
     elseif sym === :ϕ_T # dϕ/dT
@@ -111,30 +137,35 @@ function Base.getproperty(gas::Gas1D, sym::Symbol)
     elseif sym === :TP
         return [getfield(gas, :T), getfield(gas, :P)]
     elseif sym === :s
-        Rgas = Runiv / getfield(gas, :comp_sp).MW * 1000.0
+        Rgas = R(Runiv) / getfield(gas, :comp_sp).MW * 1000.0
         return getfield(gas, :ϕ) - Rgas * log(getfield(gas, :P) / Pstd)
     elseif sym === :MW
         sp = getfield(gas, :comp_sp)
         return sp.MW
     elseif sym === :R #specific gas constant
-        return Runiv / getproperty(gas, :MW) * 1000.0
+        return R(Runiv / getproperty(gas, :MW) * 1000.0)::R
     elseif sym === :γ
-        R = getproperty(gas, :R)
+        Rgas = getproperty(gas, :R)
         cp = getproperty(gas, :cp)
-        return cp / (cp - R)
+        return R(cp / (cp - Rgas))::R
     elseif sym === :gamma
         return getproperty(gas, :γ)
     elseif sym === :ρ
-        R = getproperty(gas, :R)
+        Rgas = getproperty(gas, :R)
         T = getfield(gas, :T)
         P = getfield(gas, :P)
-        return P / (R * T)
+        return R(P / (Rgas * T))::R
     elseif sym === :rho
         return getproperty(gas, :ρ)
     elseif sym === :ν
-        return 1 / getproperty(gas, :ρ)
+        return R(1 / getproperty(gas, :ρ))::R
     elseif sym === :nu
         return getproperty(gas, :ν)
+    elseif sym === :a #Speed of sound
+        Rgas = R(getproperty(gas, :R))::R
+        T = getfield(gas, :T)
+        γ = getproperty(gas, :γ)
+        return R(sqrt(γ * Rgas * T))::R
     else
         return getfield(gas, sym)
     end

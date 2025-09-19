@@ -5,8 +5,7 @@ of the gas/mixture is only a function of its temperature, i.e., $c_p(T)$ ,
 $h(T)$, and $s(T,p)$ (note the entropy is a function of both pressure and temperature).
 
 One of the important features of `IdealGasThermo.jl` is the ability to represent
-a mixture of gases as a single [`composite_species`](@ref vitiated).
-
+a mixture of gases as a single [`composite_species`](@ref vitiated). This package uses parametric typing to make it compatible with forward-mode automatic differentiation.
 
 ## Getting started
 

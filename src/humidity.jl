@@ -48,12 +48,12 @@ function generate_humid_air(
     RH::type,
     T::type = Tstd,
     P::type = Pstd,
-) where {type<:AbstractFloat}
+) where {type<:Real}
     q = specific_humidity(RH, T, P)
     Xwater = q / ε
     Xdict = mergewith(+, Xair, Dict("H2O" => Xwater))
 
-    X = zeros(Float64, Nspecies)
+    X = zeros(type, Nspecies)
     Xidict2Array!(Xdict, X)
 
     return generate_composite_species(X, "Wet air with RH = $RH at ($T K; $(P/1000.0) kPa)")

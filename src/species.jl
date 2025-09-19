@@ -29,14 +29,14 @@ defining ``c_p``, ``h``, and ``s``.
 
 See [here](@ref gas1dthermo) for a more detailed explanation.
 """
-struct composite_species <: AbstractSpecies
+struct composite_species{R<:Real} <: AbstractSpecies
     name::String
-    Tmid::Float64
-    alow::Array{Float64,1}
-    ahigh::Array{Float64,1}
-    MW::Float64
-    Hf::Float64
-    composition::Dict{String,Float64}
+    Tmid::R
+    alow::Array{R,1}
+    ahigh::Array{R,1}
+    MW::R
+    Hf::R
+    composition::Dict{String,R}
 end
 """
     generate_composite_species(Xi::AbstractVector, name::AbstractString="composite species")
@@ -45,15 +45,15 @@ Generates a composite psuedo-species to represent a gas mixture given the
 mole fraction `Xi` of its constitutents.
 """
 function generate_composite_species(
-    Xi::AbstractVector,
+    Xi::AbstractVector{R},
     name::AbstractString = "composite species",
-)
+) where R<:Real
     ALOW = reduce(hcat, spdict.alow)
     AHIGH = reduce(hcat, spdict.ahigh)
     alow = ALOW * Xi
     ahigh = AHIGH * Xi
-    MW = dot(spdict.MW, Xi)
-    Hf = dot(spdict.Hf, Xi)
+    MW = R(dot(spdict.MW, Xi))
+    Hf = R(dot(spdict.Hf, Xi))
     # Need to account for the entropy of mixing:
     Δs_mix = 0.0
     for i in eachindex(Xi)
@@ -66,7 +66,7 @@ function generate_composite_species(
     ahigh[end] = ahigh[end] - Δs_mix
     Tmid = 1000.0 #Assumed to always be the mid (this is checked for all input thermo when read)
     # comp
-    d = Dict()
+    d = Dict{String, R}()
     if !(sum(Xi) ≈ 1.0)
         error("Gas mixture composition is not well defined. Sum of Xi = $(sum(Xi)) != 1.0")
     end
@@ -78,6 +78,6 @@ function generate_composite_species(
             push!(d, spdict.name[i] => Xi[i])
         end
     end
-    return composite_species(name, Tmid, alow, ahigh, MW, Hf, d)
+    return composite_species{R}(name, Tmid, alow, ahigh, MW, Hf, d)
 
 end  # function generate_composite_species
