@@ -1,0 +1,94 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: "Branch/tag/commit to compare against"
+        required: false
+        default: "main"
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-benchmarks')
+    runs-on: ubuntu-latest
+    env:
+      BASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.baseline_ref || github.base_ref }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+
+      - name: Cache Julia artifacts
+        uses: julia-actions/cache@v2
+
+      - name: Ensure baseline ref is available
+        run: git fetch origin "${BASE_REF}" --depth=1
+
+      - name: Instantiate benchmark environment
+        run: julia --project=benchmark -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+
+      - name: Compare benchmarks against baseline
+        run: |
+          julia --project=benchmark -e '
+            using PkgBenchmark
+            baseline = "origin/$(ENV["BASE_REF"])"
+            judgment = judge(pwd(), "HEAD", baseline)
+            mkpath("benchmark-results")
+            export_markdown("benchmark-results/report.md", judgment; export_invariants=true)
+            '
+
+      - name: Print benchmark report in job log
+        run: |
+          echo "=== Benchmark Report ==="
+          cat benchmark-results/report.md
+
+      - name: Publish benchmark report in step summary
+        run: |
+          cat benchmark-results/report.md >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Fail on regression above 15%
+        run: |
+          julia --project=benchmark -e '
+            threshold = 15.0
+            report = read("benchmark-results/report.md", String)
+            worst = 0.0
+            offenders = String[]
+            for line in split(report, "\n")
+                m = match(r"\+([0-9]+(?:\.[0-9]+)?)%", line)
+                m === nothing && continue
+                pct = parse(Float64, m.captures[1])
+                worst = max(worst, pct)
+                if pct > threshold
+                    push!(offenders, strip(line))
+                end
+            end
+
+            println("Maximum parsed regression: ", round(worst; digits=2), "%")
+            if isempty(offenders)
+                println("No regression above ", threshold, "% detected.")
+                exit(0)
+            end
+
+            println("Regressions above ", threshold, "%:")
+            foreach(x -> println("  ", x), offenders)
+            exit(1)
+            '
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-report
+          path: benchmark-results/report.md
