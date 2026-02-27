@@ -10,5 +10,5 @@ PkgBenchmark = "36db933b-70db-51c0-b978-0f229ee0e533"
 
 [compat]
 BenchmarkTools = "1"
-PkgBenchmark = "0.2"
+PkgBenchmark = "1"
 julia = "1.8 - 1"
