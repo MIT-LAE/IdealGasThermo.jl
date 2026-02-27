@@ -1,9 +1,9 @@
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 IdealGasThermo = "d4fb33c0-2494-4384-b7a5-e5d0487b6649"
-PkgBenchmark = "36db933b-70db-51c0-b978-0f229ee0e533"
+PkgBenchmark = "32113eaa-f34f-5b0d-bd6c-c81e245fc73d"
 
 [compat]
 BenchmarkTools = "1"
-PkgBenchmark = "1"
+PkgBenchmark = "0.2"
 julia = "1.8 - 1"
