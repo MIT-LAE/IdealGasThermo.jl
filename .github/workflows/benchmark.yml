@@ -41,13 +41,33 @@ jobs:
 
       - name: Compare benchmarks against baseline
         run: |
-          julia --project=benchmark -e '
-            using PkgBenchmark
-            baseline = "origin/$(ENV["BASE_REF"])"
-            judgment = judge(pwd(), "HEAD", baseline)
-            mkpath("benchmark-results")
-            export_markdown("benchmark-results/report.md", judgment; export_invariants=true)
-            '
+          if git cat-file -e "origin/${BASE_REF}:benchmark/Project.toml" 2>/dev/null; then
+            julia --project=benchmark -e '
+              using PkgBenchmark
+              baseline = "origin/$(ENV["BASE_REF"])"
+              judgment = judge(pwd(), "HEAD", baseline)
+              mkpath("benchmark-results")
+              export_markdown("benchmark-results/report.md", judgment; export_invariants=true)
+              '
+            touch benchmark-results/has_judgment
+          else
+            julia --project=benchmark -e '
+              using BenchmarkTools
+              include("benchmark/benchmarks.jl")
+              results = run(SUITE; seconds=1)
+              mkpath("benchmark-results")
+              open("benchmark-results/report.md", "w") do io
+                  println(io, "# Benchmark Report")
+                  println(io)
+                  println(io, "Baseline branch `$(ENV["BASE_REF"])` does not contain `benchmark/Project.toml`.")
+                  println(io, "Ran current-branch benchmarks only; regression comparison skipped.")
+                  println(io)
+                  show(io, MIME"text/plain"(), results)
+                  println(io)
+              end
+              '
+            touch benchmark-results/no_judgment
+          fi
 
       - name: Print benchmark report in job log
         run: |
@@ -60,6 +80,10 @@ jobs:
 
       - name: Fail on regression above 15%
         run: |
+          if [ -f benchmark-results/no_judgment ]; then
+            echo "No baseline benchmark harness found; skipping regression gate."
+            exit 0
+          fi
           julia --project=benchmark -e '
             threshold = 15.0
             report = read("benchmark-results/report.md", String)
