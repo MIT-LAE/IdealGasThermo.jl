@@ -37,7 +37,7 @@ jobs:
         run: git fetch origin "${BASE_REF}" --depth=1
 
       - name: Instantiate benchmark environment
-        run: julia --project=benchmark -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        run: julia --project=benchmark -e 'using Pkg; Pkg.instantiate(); Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
 
       - name: Compare benchmarks against baseline
         run: |
