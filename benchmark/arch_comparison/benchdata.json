@@ -1,0 +1,26 @@
+{
+  "julia": "1.12.6",
+  "legacy_forwarddiff_supported": false,
+  "scenarios": [
+    {"key": "T-sweep, read cp+h+phi | legacy Gas{N}", "min_ns": 71.875, "median_ns": 87.083, "allocs": 0.0000},
+    {"key": "T-sweep, read cp+h+phi | legacy Gas1D", "min_ns": 69.750, "median_ns": 88.250, "allocs": 0.0000},
+    {"key": "T-sweep, read cp+h+phi | FrozenGas props", "min_ns": 9.000, "median_ns": 9.292, "allocs": 0.0000},
+    {"key": "T-sweep, read cp only  | legacy Gas{N}", "min_ns": 75.250, "median_ns": 80.750, "allocs": 0.0000},
+    {"key": "T-sweep, read cp only  | legacy Gas1D", "min_ns": 66.500, "median_ns": 76.083, "allocs": 0.0000},
+    {"key": "T-sweep, read cp only  | FrozenGas cp", "min_ns": 0.833, "median_ns": 0.917, "allocs": 0.0000},
+    {"key": "enthalpy inversion     | legacy Gas{N} set_h!", "min_ns": 249.165, "median_ns": 273.960, "allocs": 0.0000},
+    {"key": "enthalpy inversion     | legacy Gas1D set_h!", "min_ns": 224.165, "median_ns": 266.250, "allocs": 0.0000},
+    {"key": "enthalpy inversion     | FrozenGas T_of_h", "min_ns": 135.625, "median_ns": 146.460, "allocs": 0.0000},
+    {"key": "isentropic compression | legacy Gas{N} compress", "min_ns": 709.000, "median_ns": 833.000, "allocs": 49.0000},
+    {"key": "isentropic compression | legacy Gas1D compress", "min_ns": 625.000, "median_ns": 750.000, "allocs": 49.0000},
+    {"key": "isentropic compression | FrozenGas T_isentropic", "min_ns": 146.255, "median_ns": 146.553, "allocs": 0.0000},
+    {"key": "dh/dT,  1 partials     | FrozenGas generic Dual", "min_ns": 11.500, "median_ns": 11.791, "allocs": 0.0000},
+    {"key": "dh/dT,  1 partials     | FrozenGas analytic rule", "min_ns": 10.875, "median_ns": 11.167, "allocs": 0.0000},
+    {"key": "dh/dT,  8 partials     | FrozenGas generic Dual", "min_ns": 26.000, "median_ns": 26.250, "allocs": 0.0000},
+    {"key": "dh/dT,  8 partials     | FrozenGas analytic rule", "min_ns": 11.125, "median_ns": 11.292, "allocs": 0.0000},
+    {"key": "dh/dT, 12 partials     | FrozenGas generic Dual", "min_ns": 31.375, "median_ns": 31.667, "allocs": 0.0000},
+    {"key": "dh/dT, 12 partials     | FrozenGas analytic rule", "min_ns": 11.333, "median_ns": 11.459, "allocs": 0.0000},
+    {"key": "T_of_h, 8 partials     | Dual through Newton loop", "min_ns": 282.080, "median_ns": 289.790, "allocs": 0.0000},
+    {"key": "T_of_h, 8 partials     | IFT rule (extension)", "min_ns": 131.875, "median_ns": 153.545, "allocs": 0.0000}
+  ]
+}
