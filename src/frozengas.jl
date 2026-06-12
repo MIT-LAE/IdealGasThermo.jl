@@ -96,7 +96,7 @@ Specific enthalpy [J/kg] at temperature `T` [K]. Formation-inclusive
 sensible enthalpy is `h(gas, T) - h(gas, 298.15)`.
 Pure, zero-allocation, generic over `Real`.
 """
-@inline h(gas::FrozenGas, T) = Runiv * poly_h_R(coeffs(gas, T), T, log(T))
+@inline h(gas::FrozenGas, T::Real) = Runiv * poly_h_R(coeffs(gas, T), T, log(T))
 
 """
     s0(gas::FrozenGas, T)
