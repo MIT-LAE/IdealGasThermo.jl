@@ -1,0 +1,153 @@
+using ForwardDiff
+
+@testset "FastFrozenGas inversions" begin
+
+    # the public verb, used throughout: the keyword names what is known
+    Th(g, x) = temperature(g, h = x)
+    # single-method positional helpers: local closures with kwarg defaults
+    # have non-specializing kwsorters, and multi-method local functions get
+    # boxed when captured — both would charge allocations to the test helper
+    # rather than the package facade (the facade itself is verified 0-alloc)
+    Tis(g, T1, PR) = temperature(g, T1 = T1, PR = PR)
+    Tis_eta(g, T1, PR, etap) = temperature(g, T1 = T1, PR = PR, ηp = etap)
+
+    @testset "construction and :seeded temperature(h = ...)" begin
+        air = FrozenGas(DryAir)
+        fg = FastFrozenGas(air)
+        @test fg isa FastFrozenGas{:seeded} # exact tier is the default
+        # default-mode inversion is exact: table-seeded Newton against the
+        # same polynomials, same convergence criterion as FrozenGas
+        for T in [250.0, 500.0, 999.0, 1000.5, 1600.0, 2200.0]
+            @test Th(fg, IdealGasThermo.h(air, T)) ≈ T rtol = 1e-10
+        end
+        # deterministic: same input, same output, bitwise
+        hspec = IdealGasThermo.h(air, 1234.5)
+        @test Th(fg, hspec) === Th(fg, hspec)
+        # the same verb works on the plain gas
+        @test Th(air, hspec) ≈ Th(fg, hspec) rtol = 1e-12
+        # mode is validated
+        @test_throws ArgumentError FastFrozenGas(air, mode = :warp)
+        # facade argument validation
+        @test_throws ArgumentError temperature(air)
+        @test_throws ArgumentError temperature(air, h = hspec, T1 = 300.0, PR = 2.0)
+    end
+
+    @testset ":seeded temperature(T1 = ..., PR = ...)" begin
+        air = FrozenGas(DryAir)
+        fg = FastFrozenGas(air)
+        # same answers as the FrozenGas Newton solve, compression and expansion
+        for (T1, PR) in [(288.15, 12.0), (500.0, 30.0), (1600.0, 0.25), (900.0, 1.05)]
+            @test Tis(fg, T1, PR) ≈ Tis(air, T1, PR) rtol = 1e-10
+            @test Tis_eta(fg, T1, PR, 0.9) ≈ Tis_eta(air, T1, PR, 0.9) rtol = 1e-10
+        end
+        # deterministic
+        @test Tis(fg, 288.15, 12.0) === Tis(fg, 288.15, 12.0)
+        # integer arguments are accepted, like the FrozenGas methods
+        @test Tis(fg, 288.15, 12) === Tis(fg, 288.15, 12.0)
+        @test Th(fg, 500000) === Th(fg, 500000.0)
+    end
+
+    @testset ":seeded out-of-range targets fall back to exact solve" begin
+        air = FrozenGas(DryAir)
+        fg = FastFrozenGas(air) # default range T ∈ [200, 2400]
+        # h above the table ceiling (T = 2600 K > Tmax = 2400 K): no error,
+        # no extrapolation — the exact cold-start Newton answer
+        hhot = IdealGasThermo.h(air, 2600.0)
+        @test hhot > fg.hmax # the target really is outside the table
+        @test Th(fg, hhot) ≈ Th(air, hhot) rtol = 1e-10
+        # h below the table floor (T = 150 K < Tmin = 200 K)
+        hcold = IdealGasThermo.h(air, 150.0)
+        @test hcold < fg.hmin
+        @test Th(fg, hcold) ≈ Th(air, hcold) rtol = 1e-10
+        # the prototype blowout case: T1 = 1500 K, PR = 40 lands above s0max
+        T1, PR = 1500.0, 40.0
+        @test IdealGasThermo.s0(air, T1) + air.R * log(PR) > fg.s0max
+        @test Tis(fg, T1, PR) ≈ Tis(air, T1, PR) rtol = 1e-10
+    end
+
+    @testset ":fast mode — pure table lookup, same verb" begin
+        air = FrozenGas(DryAir)
+        fg = FastFrozenGas(air, mode = :fast)
+        @test fg isa FastFrozenGas{:fast}
+        # documented accuracy |ΔT/T| ≲ 2e-9 at N = 256 (measured 5.8e-10 for
+        # h, 1.4e-9 for s0); test at 2e-9 across a dense in-range sweep
+        for T in range(250.0, 2200.0; length = 1000)
+            @test Th(fg, IdealGasThermo.h(air, T)) ≈ T rtol = 2e-9
+        end
+        # isentropic agrees with the exact solve to the same tier accuracy
+        for (T1, PR) in [(288.15, 12.0), (500.0, 30.0), (1600.0, 0.25), (900.0, 1.05)]
+            @test Tis(fg, T1, PR) ≈ Tis(air, T1, PR) rtol = 2e-9
+            @test Tis_eta(fg, T1, PR, 0.9) ≈ Tis_eta(air, T1, PR, 0.9) rtol = 2e-9
+        end
+        # out of range: the approximate mode is loud — DomainError, no fallback
+        @test_throws DomainError Th(fg, IdealGasThermo.h(air, 2600.0))
+        @test_throws DomainError Th(fg, IdealGasThermo.h(air, 150.0))
+        @test_throws DomainError Tis(fg, 1500.0, 40.0)
+    end
+
+    @testset "forward properties forward exactly to the wrapped gas" begin
+        air = FrozenGas(DryAir)
+        for fg in (FastFrozenGas(air), FastFrozenGas(air, mode = :fast))
+            @test IdealGasThermo.R(fg) === IdealGasThermo.R(air)
+            for T in [250.0, 999.9, 1000.0, 1600.0, 2600.0] # incl. outside table range
+                @test IdealGasThermo.cp(fg, T) === IdealGasThermo.cp(air, T)
+                @test IdealGasThermo.h(fg, T) === IdealGasThermo.h(air, T)
+                @test IdealGasThermo.s0(fg, T) === IdealGasThermo.s0(air, T)
+                @test IdealGasThermo.gamma(fg, T) === IdealGasThermo.gamma(air, T)
+                @test props(fg, T) === props(air, T)
+            end
+            @test IdealGasThermo.pressure_ratio(fg, 288.15, 600.0) ===
+                  IdealGasThermo.pressure_ratio(air, 288.15, 600.0)
+        end
+    end
+
+    @testset "zero allocations after warmup" begin
+        air = FrozenGas(DryAir)
+        seeded = FastFrozenGas(air) # construction allocates (tables); calls must not
+        fast = FastFrozenGas(air, mode = :fast)
+        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
+        hin = IdealGasThermo.h(air, 700.0) # in-range target
+        @test measured(Th, seeded, hin) == 0
+        @test measured(Tis, seeded, 288.15, 12.0) == 0
+        @test measured(Th, fast, hin) == 0
+        @test measured(Tis, fast, 288.15, 12.0) == 0
+        # the out-of-range fallback path is allocation-free too
+        @test measured(Th, seeded, IdealGasThermo.h(air, 2600.0)) == 0
+        @test measured(Tis, seeded, 1500.0, 40.0) == 0
+    end
+
+    @testset "ForwardDiff through the verb (IFT rules)" begin
+        @test Base.get_extension(IdealGasThermo, :IdealGasThermoForwardDiffExt) !== nothing
+        air = FrozenGas(DryAir)
+        fg = FastFrozenGas(air)
+        D = ForwardDiff.derivative
+        # dT/dh = 1/cp at the solution (implicit function theorem)
+        for T in [400.0, 1500.0]
+            hT = IdealGasThermo.h(air, T)
+            @test D(hh -> Th(fg, hh), hT) ≈ 1 / IdealGasThermo.cp(air, T) rtol = 1e-10
+        end
+        # ∂T2/∂PR = R·T2 / (PR·cp(T2)) from s0(T2) = s0(T1) + R ln(PR)
+        T1, PR = 288.15, 12.0
+        T2 = Tis(fg, T1, PR)
+        @test D(pr -> Tis(fg, T1, pr), PR) ≈
+              air.R * T2 / (PR * IdealGasThermo.cp(air, T2)) rtol = 1e-10
+        # ∂T2/∂T1 = cp(T1)·T2 / (cp(T2)·T1)
+        @test D(t1 -> Tis(fg, t1, PR), T1) ≈
+              IdealGasThermo.cp(air, T1) * T2 /
+              (IdealGasThermo.cp(air, T2) * T1) rtol = 1e-10
+        # both arguments Dual (gradient): sum of the two partials
+        g = ForwardDiff.gradient(x -> Tis(fg, x[1], x[2]), [T1, PR])
+        @test g[1] ≈ D(t1 -> Tis(air, t1, PR), T1) rtol = 1e-10
+        @test g[2] ≈ D(pr -> Tis(air, T1, pr), PR) rtol = 1e-10
+        # the :fast mode carries the same IFT tangents (primal ≲ 2e-9)
+        fast = FastFrozenGas(air, mode = :fast)
+        hT = IdealGasThermo.h(air, 700.0)
+        @test D(hh -> Th(fast, hh), hT) ≈
+              1 / IdealGasThermo.cp(air, Th(air, hT)) rtol = 1e-8
+        # Dual-typed evaluation stays allocation-free through the rules
+        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
+        @test measured(D, hh -> Th(fg, hh), IdealGasThermo.h(air, 700.0)) == 0
+        @test measured(D, pr -> Tis(fg, 288.15, pr), 12.0) == 0
+    end
+
+end

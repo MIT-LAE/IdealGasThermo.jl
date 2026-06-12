@@ -36,31 +36,6 @@ struct Combustor
     Hfvec::SVector{Nspecies,Float64}             # species Hf at 298.15 K [J/mol]
 end
 
-# Oxidizer mole fractions (database order, normalized) and molecular weight.
-# The species "Air" maps to the dry-air composition `Xair` but keeps the
-# database MW, exactly mirroring `vitiated_mixture`/`fixed_fuel_vitiated_species`.
-function _oxidizer_X_MW(oxidizer::composite_species)
-    X = Xidict2Array(oxidizer.composition)
-    return X ./ sum(X), oxidizer.MW
-end
-function _oxidizer_X_MW(oxidizer::species)
-    Xdict = oxidizer.name == "Air" ? Xair : Dict(oxidizer.name => 1.0)
-    X = Xidict2Array(Xdict)
-    return X ./ sum(X), oxidizer.MW
-end
-_oxidizer_X_MW(oxidizer::AbstractString) = _oxidizer_X_MW(species_in_spdict(oxidizer))
-function _oxidizer_X_MW(Xdict::Dict)
-    X = Xidict2Array(convert(Dict{String,Float64}, Xdict))
-    X = X ./ sum(X)
-    return X, dot(spdict.MW, X)
-end
-function _oxidizer_X_MW(X::AbstractVector{<:Real})
-    length(X) == Nspecies ||
-        error("Oxidizer mole-fraction vector must have length $Nspecies (spdict order)")
-    Xn = Vector{Float64}(X) ./ sum(X)
-    return Xn, dot(spdict.MW, Xn)
-end
-
 """
     Combustor(fuel, oxidizer=DryAir; ηburn=1.0)
 
@@ -77,7 +52,7 @@ function Combustor(
     ηburn::Float64 = 1.0,
 )
     fuelsp = fuel isa species ? fuel : species_in_spdict(fuel)
-    Xin, MWox = _oxidizer_X_MW(oxidizer)
+    Xin, MWox = _X_MW(oxidizer)
 
     # Per-mole-of-fuel composition change, scaled by ηburn; unburnt fuel
     # passes through (mirrors vitiated_mixture).

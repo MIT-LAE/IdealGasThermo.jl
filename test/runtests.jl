@@ -15,5 +15,7 @@ const IdealGasThermo = IdealGasThermo
     include("unit_test_utils.jl")
     include("unit_test_frozengas.jl")
     include("unit_test_products.jl")
-    include("unit_test_tabulated.jl")
+    include("unit_test_mixing.jl")
+    include("unit_test_humidair.jl")
+    include("unit_test_fastgas.jl")
 end

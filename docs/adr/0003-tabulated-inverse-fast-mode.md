@@ -1,7 +1,26 @@
 # ADR-0003: Tabulated inverse "fast mode" — two tiers, mandatory bounds guard
 
 Date: 2026-06-12
-Status: accepted
+Status: accepted (amended 2026-06-12: final naming)
+
+## Amendment — final naming (supersedes names in Decision below)
+
+The tier must be selected by the **type**, not by the function name, so an
+accelerated gas drops into existing call sites unchanged. Final API:
+
+- Public inversion verb: `temperature(gas; h = ...)` /
+  `temperature(gas; T1 = ..., PR = ..., ηp)` — kwargs name the known
+  quantity; identical for every gas flavor. Internal positional engines
+  `T_of_h`/`T_isentropic` are unexported (the ForwardDiff IFT rules attach
+  there).
+- Wrapper type: `FastFrozenGas{mode}` via
+  `FastFrozenGas(gas; mode = :seeded | :fast, N, Tmin, Tmax)` — replaces
+  `TabulatedGas`/`tabulate` ("tabulated" described the implementation, not
+  the contract; the seeded tier is exact).
+- The names `T_of_h_interp`/`T_isentropic_interp` are removed: the `:fast`
+  mode IS the interp tier, selected by type parameter. Out-of-range
+  behavior is unchanged per tier (:seeded falls back to the exact cold
+  solve; :fast throws `DomainError`).
 
 ## Context
 

@@ -196,3 +196,42 @@ function T_isentropic(gas::FrozenGas, T1, PR; ηp = 1.0)
     end
     error("T_isentropic did not converge for T1 = $T1, PR = $PR (last T = $T)")
 end
+
+"""
+    temperature(gas; h = ...)
+    temperature(gas; T1 = ..., PR = ..., ηp = 1.0)
+
+The public inversion verb: the keyword arguments name what is known.
+
+- `temperature(gas, h = hspec)` — the temperature [K] at which the gas has
+  specific enthalpy `hspec` [J/kg] (same formation-inclusive datum as
+  [`h`](@ref)).
+- `temperature(gas, T1 = ..., PR = ...; ηp = 1.0)` — the temperature [K]
+  after an ideal compression/expansion from `T1` [K] by pressure ratio
+  `PR`, solving `s0(T2) = s0(T1) + R·ln(PR)/ηp`.
+
+The verb is identical for every gas flavor — `FrozenGas` (plain Newton),
+`FastFrozenGas{:seeded}` (table-seeded Newton, same exact contract), and
+`FastFrozenGas{:fast}` (pure table lookup, ≲ 2e-9) — so accelerated gases
+drop into existing call sites unchanged. Keyword values may be ForwardDiff
+`Dual`s; derivatives use the implicit-function-theorem rules from the
+package extension, never differentiation of the Newton loop.
+"""
+function temperature(gas; h = nothing, T1 = nothing, PR = nothing, ηp = 1.0)
+    if h !== nothing
+        (T1 === nothing && PR === nothing) || throw(
+            ArgumentError(
+                "temperature: give either h alone, or T1 and PR together — not both",
+            ),
+        )
+        return T_of_h(gas, h)
+    elseif T1 !== nothing && PR !== nothing
+        return T_isentropic(gas, T1, PR; ηp = ηp)
+    end
+    throw(
+        ArgumentError(
+            "temperature: specify either h = ... (enthalpy inversion) " *
+            "or T1 = ..., PR = ... (isentrope)",
+        ),
+    )
+end
