@@ -1,0 +1,163 @@
+# Physics property tests: invariants that must hold over the WHOLE space of
+# gases this package can construct — not at hand-picked points, and not by
+# agreement with the legacy implementation (see the migration tests for
+# that). Randomized with a fixed seed and deliberately small N: each @test
+# here is a distinct physical claim, not a coverage statistic.
+using Random
+
+@testset "physics properties (randomized, seeded)" begin
+
+    rng = Xoshiro(20260612)
+    uni(a, b) = a + (b - a) * rand(rng)
+
+    air = FrozenGas(DryAir)
+    sysCH4 = Combustor("CH4", DryAir)
+    sysJet = Combustor("Jet-A(g)", DryAir)
+    vit = IdealGasThermo.vitiated_species("CH4", "Air", 0.04)
+
+    # a small pool of randomly-parameterized gases spanning what the
+    # constructors can produce
+    gas_pool() = [
+        air,
+        products(sysCH4, uni(0.005, 0.05)),
+        products(sysJet, uni(0.005, 0.045)),
+        mixed(Mixer(DryAir, vit), uni(0.1, 10.0)),
+        humid_air(SH = uni(0.001, 0.05)),
+    ]
+
+    @testset "positivity, monotonicity, gamma bounds (random gases)" begin
+        Tgrid = range(220.0, 2350.0; length = 40)
+        for gas in gas_pool()
+            hs = [IdealGasThermo.h(gas, T) for T in Tgrid]
+            ss = [IdealGasThermo.s0(gas, T) for T in Tgrid]
+            @test all(IdealGasThermo.cp(gas, T) > 0 for T in Tgrid)
+            @test all(diff(hs) .> 0)  # dh/dT = cp > 0 ⟹ strictly increasing
+            @test all(diff(ss) .> 0)  # ds0/dT = cp/T > 0
+            @test all(1.0 < IdealGasThermo.gamma(gas, T) < 1.7 for T in Tgrid)
+        end
+    end
+
+    @testset "second law: irreversible round trip generates entropy" begin
+        for _ = 1:5
+            st = GasState(air, uni(250.0, 800.0), 1.0e5)
+            PR, ηp = uni(2.0, 30.0), uni(0.85, 0.95)
+            rt = expand(compress(st, PR; ηp = ηp), PR; ηp = ηp)
+            @test rt.P ≈ st.P rtol = 1e-12      # pressure round trip exact
+            @test rt.T > st.T                   # lost work shows up as heat
+            @test entropy(rt) > entropy(st)     # ΔS > 0, strictly
+        end
+        # the reversible limit recovers the identity
+        st = GasState(air, 400.0, 1.0e5)
+        rt = expand(compress(st, 12.0), 12.0)
+        @test rt.T ≈ st.T rtol = 1e-9
+    end
+
+    @testset "process round trips (reversible limits)" begin
+        for _ = 1:3
+            st = GasState(air, uni(300.0, 900.0), uni(0.5e5, 5.0e5))
+            q = uni(1.0e4, 5.0e5)
+            back = add_heat(add_heat(st, q), -q)
+            @test back.T ≈ st.T rtol = 1e-9
+            @test back.P == st.P                # constant-P by construction
+            w = uni(1.0e4, 3.0e5)
+            rt = extract_work(add_work(st, w), w) # ηp = 1: thermodynamically reversible
+            @test rt.T ≈ st.T rtol = 1e-9
+            @test rt.P ≈ st.P rtol = 1e-9
+        end
+    end
+
+    @testset "entropy pressure-scaling: s(T, kP) = s(T, P) - R ln k" begin
+        for _ = 1:3
+            st = GasState(air, uni(250.0, 1800.0), uni(0.2e5, 2.0e5))
+            k = uni(0.1, 40.0)
+            @test entropy(GasState(air, st.T, k * st.P)) ≈
+                  entropy(st) - IdealGasThermo.R(air) * log(k) rtol = 1e-12
+        end
+    end
+
+    @testset "combustion: mass conservation and heat release vs LHV" begin
+        for (fuel, sys, FARmax) in (("CH4", sysCH4, 0.05), ("Jet-A(g)", sysJet, 0.045))
+            fsp = species_in_spdict(fuel)
+            ΣΔX = sum(IdealGasThermo.reaction_change_molar_fraction(fuel))
+            for _ = 1:3
+                f = uni(0.005, FARmax)
+                gp = products(sys, f)
+                # mass conservation through the mole-fraction algebra:
+                # (1 + molFAR·ΣΔX)·MW_products = MW_ox + molFAR·MW_fuel
+                molFAR = f * DryAir.MW / fsp.MW
+                @test (1 + molFAR * ΣΔX) * gp.MW ≈
+                      DryAir.MW + molFAR * fsp.MW rtol = 1e-12
+            end
+            # heat release at 298.15 K equals f·LHV — ties the products
+            # composition algebra, the formation-inclusive datum (b₁
+            # coefficients), and the independent Hf-header-based LHV()
+            # computation together
+            f = 0.03
+            fgas = FrozenGas(fsp)
+            release =
+                -(
+                    (1 + f) * IdealGasThermo.h(products(sys, f), 298.15) -
+                    IdealGasThermo.h(air, 298.15) - f * IdealGasThermo.h(fgas, 298.15)
+                )
+            @test release ≈ f * IdealGasThermo.LHV(fsp) rtol = 1e-5
+        end
+    end
+
+    @testset "mixing algebra: symmetry and self-identity" begin
+        mAB = Mixer(DryAir, vit)
+        mBA = Mixer(vit, DryAir)
+        for _ = 1:4
+            m = uni(0.1, 10.0)
+            g1 = mixed(mAB, m)      # m kg of vit per kg of air
+            g2 = mixed(mBA, 1 / m)  # the same mixture, described from the other side
+            @test g1.MW ≈ g2.MW rtol = 1e-12
+            for T in (300.0, 1600.0)
+                @test IdealGasThermo.cp(g1, T) ≈ IdealGasThermo.cp(g2, T) rtol = 1e-12
+                @test IdealGasThermo.h(g1, T) ≈ IdealGasThermo.h(g2, T) rtol = 1e-12
+                @test IdealGasThermo.s0(g1, T) ≈ IdealGasThermo.s0(g2, T) rtol = 1e-12
+            end
+        end
+        # mixing a gas with itself is the identity, at any ratio
+        mAA = Mixer(DryAir, DryAir)
+        for m in (0.0, uni(0.1, 10.0), 1.0e6)
+            g = mixed(mAA, m)
+            @test IdealGasThermo.cp(g, 600.0) ≈ IdealGasThermo.cp(air, 600.0) rtol = 1e-12
+            @test IdealGasThermo.s0(g, 600.0) ≈ IdealGasThermo.s0(air, 600.0) rtol = 1e-12
+        end
+    end
+
+    @testset "coefficient self-consistency: s0 and h against ∫cp" begin
+        # metamorphic check independent of any reference implementation:
+        # the h and s0 polynomials must be the integrals of the cp
+        # polynomial (composite Simpson, fine enough that quadrature error
+        # is far below the tolerance; one interval straddles the 1000 K
+        # coefficient breakpoint by construction)
+        simpson(f, a, b, n) =
+            (b - a) / (3n) * sum(
+                (i == 0 || i == n ? 1 : iseven(i) ? 2 : 4) * f(a + (b - a) * i / n)
+                for i = 0:n
+            )
+        cases = [(air, 300.0, 800.0), (products(sysJet, 0.03), 700.0, 1500.0)]
+        push!(cases, (gas_pool()[end], uni(250.0, 900.0), uni(1100.0, 2200.0)))
+        for (gas, T1, T2) in cases
+            ∫cp = simpson(T -> IdealGasThermo.cp(gas, T), T1, T2, 2048)
+            ∫cpT = simpson(T -> IdealGasThermo.cp(gas, T) / T, T1, T2, 2048)
+            @test IdealGasThermo.h(gas, T2) - IdealGasThermo.h(gas, T1) ≈ ∫cp rtol = 1e-8
+            @test IdealGasThermo.s0(gas, T2) - IdealGasThermo.s0(gas, T1) ≈ ∫cpT rtol = 1e-8
+        end
+    end
+
+    @testset "error paths: pathological inputs fail loudly, not silently" begin
+        # inversion driven into negative-temperature territory: the Newton
+        # iterate hits log(T ≤ 0)
+        @test_throws DomainError temperature(air, h = -1.0e10)
+        # inversion target beyond any representable temperature: the bounded
+        # Newton loop exhausts NEWTON_MAXITER and raises (the non-convergence
+        # branch is live code, not decoration)
+        @test_throws ErrorException temperature(air, h = 1.0e12)
+        # beyond-stoichiometric FAR would need negative O2 — errors loudly
+        # rather than returning an unphysical composition
+        @test_throws DomainError products(sysCH4, 0.5)
+    end
+
+end

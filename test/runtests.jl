@@ -19,4 +19,5 @@ const IdealGasThermo = IdealGasThermo
     include("unit_test_humidair.jl")
     include("unit_test_fastgas.jl")
     include("unit_test_gasstate.jl")
+    include("unit_test_properties.jl")
 end
