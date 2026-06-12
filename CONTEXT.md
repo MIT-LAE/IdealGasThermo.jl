@@ -25,6 +25,13 @@ terms exactly.
   not zero. Sensible enthalpy from 298.15 K is `h(gas, T) − h(gas, 298.15)`.
 - **Vitiated mixture** — combustion products of a fuel + oxidizer at a given
   **FAR** (fuel–air mass ratio), frozen composition, complete combustion.
+- **Combustor** — a precomputed fuel + oxidizer combustion system: dense
+  per-species `SVector`/`SMatrix` data built once from the species database.
+  The pure, allocation-free replacement for the Dict-based
+  `vitiated_species` path on the hot path.
+- **products** — `products(sys::Combustor, FAR) -> FrozenGas`: the
+  combustion-product gas at a given FAR. Pure, zero-allocation, smooth in
+  FAR (ForwardDiff through FAR works; `FrozenGas{TF}` widens its eltype).
 - **Inversion** — solving a property relation backwards for temperature:
   `T_of_h` (given h) and `T_isentropic` (given T1 and pressure ratio, along
   an isentrope with optional polytropic efficiency).
@@ -34,7 +41,12 @@ terms exactly.
 - The **pure core** (`FrozenGas` + property functions + inversions) is the
   deep module everything else composes over.
 - The mutable `Gas`/`Gas1D` types are the legacy *stateful convenience layer*;
-  they are kept API-stable but are not the hot path.
+  they are kept API-stable but are not the hot path. **`Gas1D` is deprecated**
+  (ADR-0002): use `FrozenGas`. `Gas{N}` remains only as the composition
+  workspace until pure FrozenGas-producing constructors replace it.
+- `FrozenGas` keeps its name permanently — it is not renamed to `Gas` in
+  v2.0 (ADR-0002: no name recycling across a semantics flip; "frozen" names
+  the no-dissociation contract).
 - Derivatives are **analytic first**: ForwardDiff `Dual` support is provided by
   a package extension that dispatches to closed-form derivatives
   (dh/dT = cp, dϕ/dT = cp/T) and implicit-function-theorem rules for

@@ -55,3 +55,10 @@ in `claude_sandbox/proto_props/` and `claude_sandbox/proto_deriv/`) showed:
 - Future architecture reviews should not re-propose caching temperature
   powers in mutable state for performance: it was measured slower than pure
   recomputation for realistic call patterns.
+- Likewise, do not re-propose hand-fusing the three Horner kernels in
+  `props` into a shared power-basis kernel (measured 2026-06-11, prototype
+  in `claude_sandbox/proto_fused/`): every fused/prescaled variant was
+  4–16% *slower* because LLVM already CSEs the shared `1/T` divides across
+  the inlined kernels and SLP-vectorizes the h/s0 chains into `<2 x double>`
+  SIMD lanes, which explicit power-basis code defeats. The per-call floor is
+  `log(T)` (~5 of the 9 ns), untouchable by polynomial rearrangement.
