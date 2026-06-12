@@ -199,39 +199,36 @@ end
 
 """
     temperature(gas; h = ...)
-    temperature(gas; T1 = ..., PR = ..., ηp = 1.0)
 
-The public inversion verb: the keyword arguments name what is known.
-
-- `temperature(gas, h = hspec)` — the temperature [K] at which the gas has
-  specific enthalpy `hspec` [J/kg] (same formation-inclusive datum as
-  [`h`](@ref)).
-- `temperature(gas, T1 = ..., PR = ...; ηp = 1.0)` — the temperature [K]
-  after an ideal compression/expansion from `T1` [K] by pressure ratio
-  `PR`, solving `s0(T2) = s0(T1) + R·ln(PR)/ηp`.
+The public inversion verb: the temperature [K] at which the gas has
+specific enthalpy `h` [J/kg] (same formation-inclusive datum as
+[`h`](@ref)).
 
 The verb is identical for every gas flavor — `FrozenGas` (plain Newton),
 `FastFrozenGas{:seeded}` (table-seeded Newton, same exact contract), and
 `FastFrozenGas{:fast}` (pure table lookup, ≲ 2e-9) — so accelerated gases
-drop into existing call sites unchanged. Keyword values may be ForwardDiff
-`Dual`s; derivatives use the implicit-function-theorem rules from the
-package extension, never differentiation of the Newton loop.
+drop into existing call sites unchanged. The keyword value may be a
+ForwardDiff `Dual`; derivatives use the implicit-function-theorem rules
+from the package extension, never differentiation of the Newton loop.
+
+`temperature` inverts a property relation; it does not run a process. The
+former isentrope form `temperature(gas, T1 = ..., PR = ...; ηp)` is now an
+`ArgumentError` — a polytropic change of state is a *process*, expressed by
+the process verbs [`compress`](@ref) and [`expand`](@ref) (both with
+pressure ratio ≥ 1; the direction lives in the verb). See ADR-0004.
 """
-function temperature(gas; h = nothing, T1 = nothing, PR = nothing, ηp = 1.0)
-    if h !== nothing
-        (T1 === nothing && PR === nothing) || throw(
+function temperature(gas; h = nothing, T1 = nothing, PR = nothing, ηp = nothing)
+    if T1 !== nothing || PR !== nothing || ηp !== nothing
+        throw(
             ArgumentError(
-                "temperature: give either h alone, or T1 and PR together — not both",
+                "temperature no longer takes the isentrope form (T1/PR/ηp): " *
+                "that is a process, not an inversion — use " *
+                "compress(gas, T1, PR; ηp) or expand(gas, T1, PR; ηp), " *
+                "both with pressure ratio ≥ 1",
             ),
         )
-        return T_of_h(gas, h)
-    elseif T1 !== nothing && PR !== nothing
-        return T_isentropic(gas, T1, PR; ηp = ηp)
     end
-    throw(
-        ArgumentError(
-            "temperature: specify either h = ... (enthalpy inversion) " *
-            "or T1 = ..., PR = ... (isentrope)",
-        ),
-    )
+    h !== nothing ||
+        throw(ArgumentError("temperature: specify h = ... (enthalpy inversion)"))
+    return T_of_h(gas, h)
 end
