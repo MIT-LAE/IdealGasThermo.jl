@@ -11,7 +11,7 @@ inversions (see docs/adr/0001-pure-immutable-gas-core.md).
 module IdealGasThermoForwardDiffExt
 
 using IdealGasThermo
-using IdealGasThermo: FrozenGas, coeffs, Runiv, cp, h, s0
+using IdealGasThermo: FrozenGas, TabulatedGas, coeffs, Runiv, cp, h, s0
 import IdealGasThermo: cp, h, s0, gamma, props, T_of_h, T_isentropic
 using ForwardDiff: Dual, value, partials
 
@@ -68,6 +68,38 @@ end
 
 function T_isentropic(gas::FrozenGas, T1::Dual{Tag}, PR::Dual{Tag}; ηp = 1.0) where {Tag}
     T2 = T_isentropic(gas, value(T1), value(PR); ηp = ηp)
+    ∂ = cp(gas, value(T1)) / value(T1) * partials(T1) +
+        gas.R / (ηp * value(PR)) * partials(PR)
+    Dual{Tag}(T2, T2 / cp(gas, T2) * ∂)
+end
+
+# TabulatedGas: identical implicit-function-theorem rules — the primal solve
+# goes through the table-seeded (or out-of-range fallback) Newton path on
+# plain Float64; the partials are the same closed forms evaluated with the
+# wrapped gas's exact polynomials.
+
+function T_of_h(tg::TabulatedGas, hd::Dual{Tag}) where {Tag}
+    T = T_of_h(tg, value(hd))
+    Dual{Tag}(T, partials(hd) / cp(tg.gas, T))
+end
+
+function T_isentropic(tg::TabulatedGas, T1::Dual{Tag}, PR::Real; ηp = 1.0) where {Tag}
+    gas = tg.gas
+    T2 = T_isentropic(tg, value(T1), PR; ηp = ηp)
+    ∂ = cp(gas, value(T1)) / value(T1) * partials(T1)
+    Dual{Tag}(T2, T2 / cp(gas, T2) * ∂)
+end
+
+function T_isentropic(tg::TabulatedGas, T1::Real, PR::Dual{Tag}; ηp = 1.0) where {Tag}
+    gas = tg.gas
+    T2 = T_isentropic(tg, T1, value(PR); ηp = ηp)
+    ∂ = gas.R / (ηp * value(PR)) * partials(PR)
+    Dual{Tag}(T2, T2 / cp(gas, T2) * ∂)
+end
+
+function T_isentropic(tg::TabulatedGas, T1::Dual{Tag}, PR::Dual{Tag}; ηp = 1.0) where {Tag}
+    gas = tg.gas
+    T2 = T_isentropic(tg, value(T1), value(PR); ηp = ηp)
     ∂ = cp(gas, value(T1)) / value(T1) * partials(T1) +
         gas.R / (ηp * value(PR)) * partials(PR)
     Dual{Tag}(T2, T2 / cp(gas, T2) * ∂)

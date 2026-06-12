@@ -35,6 +35,15 @@ terms exactly.
 - **Inversion** — solving a property relation backwards for temperature:
   `T_of_h` (given h) and `T_isentropic` (given T1 and pressure ratio, along
   an isentrope with optional polytropic efficiency).
+- **TabulatedGas** — a `FrozenGas` plus two precomputed cubic-Hermite
+  *inverse* tables (h → T and s0 → T) built by `tabulate(gas; N, Tmin, Tmax)`.
+  Accelerates only the inversions; the forward functions forward to the
+  wrapped gas unchanged. Two tiers: the default `T_of_h`/`T_isentropic` use
+  the table as a Newton *seed* (exact answers, same convergence contract as
+  `FrozenGas`; out-of-range targets fall back to the cold-start solve), and
+  the opt-in `T_of_h_interp`/`T_isentropic_interp` are pure table lookups
+  (|ΔT/T| ≤ 1e-9 at N = 256; `DomainError` out of range — never silent
+  extrapolation).
 
 ## Architecture terms (see docs/adr/)
 
