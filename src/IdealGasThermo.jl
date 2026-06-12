@@ -29,6 +29,8 @@ export X2Y, Y2X
 include("thermoProps.jl")
 include("frozengas.jl")
 export FrozenGas, props, T_of_h, T_isentropic
+include("tabulatedgas.jl")
+export TabulatedGas, tabulate, T_of_h_interp, T_isentropic_interp
 include("combustor.jl")
 export Combustor, products
 include("atmosphere.jl")

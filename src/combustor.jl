@@ -2,8 +2,7 @@
     Combustor
 
 Precomputed fuel + oxidizer combustion system: the pure, allocation-free
-replacement for the Dict-based [`vitiated_species`](@ref) path on the hot
-path.
+replacement for the Dict-based [`vitiated_species`](@ref) path.
 
 Built **once** from a fuel and an oxidizer (construction may consult the
 global species database `spdict`; [`products`](@ref) calls never do).
@@ -131,7 +130,7 @@ function products(sys::Combustor, FAR)
     MW = dot(sys.MWvec, X)
     Hf = dot(sys.Hfvec, X)
 
-    # Entropy of mixing, folded into the integration constant b₂ exactly as
+    # Entropy of mixing, folded into the integration constant b₂ as
     # in generate_composite_species. Entries with Xᵢ = 0 are identically
     # zero for all FAR (never produced/consumed), so the branch does not
     # break FAR-differentiability.
