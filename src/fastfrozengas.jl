@@ -64,7 +64,7 @@ Specific gas constant [J/kg/K] of the wrapped [`FrozenGas`](@ref).
 """
 @inline R(fg::FastFrozenGas) = R(fg.gas)
 @inline cp(fg::FastFrozenGas, T) = cp(fg.gas, T)
-@inline h(fg::FastFrozenGas, T) = h(fg.gas, T)
+@inline h(fg::FastFrozenGas, T::Real) = h(fg.gas, T)
 @inline s0(fg::FastFrozenGas, T) = s0(fg.gas, T)
 @inline gamma(fg::FastFrozenGas, T) = gamma(fg.gas, T)
 @inline props(fg::FastFrozenGas, T) = props(fg.gas, T)

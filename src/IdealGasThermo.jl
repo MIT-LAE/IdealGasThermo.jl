@@ -40,9 +40,10 @@ include("mixer.jl")
 export Mixer, mixed
 include("atmosphere.jl")
 
-gas = Gas()
-gas.X = Xair
-const DryAir = generate_composite_species(gas.X, "Dry Air")
+const DryAir = let g = Gas()
+    g.X = Xair
+    generate_composite_species(g.X, "Dry Air")
+end
 export DryAir
 include("humidity.jl")
 export humid_air
