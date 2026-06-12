@@ -4,3 +4,6 @@ docs/build/*
 *.code-workspace
 .VSCodeCounter/*
 *png
+Manifest.toml
+# local scratch, superseded by GasState/process verbs (see HANDOFF)
+src/FlowStations.jl
