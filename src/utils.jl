@@ -123,3 +123,32 @@ function Xidict2Array(Xdict::Dict{String,Float64})
     return X
 
 end  # function Xidict2ArrayXdict
+
+# Mole fractions (database order, normalized) and molecular weight of a
+# composition-bearing input. Accepted forms: a `composite_species`, a database
+# `species` or its name (the species "Air" maps to the dry-air composition
+# `Xair` but keeps the database MW, exactly mirroring
+# `vitiated_mixture`/`fixed_fuel_vitiated_species`), a mole-fraction
+# `Dict{String,Float64}`, or a mole-fraction vector ordered as `spdict`.
+# Shared by `Combustor` (oxidizer resolution) and `Mixer` (stream resolution).
+function _X_MW(input::composite_species)
+    X = Xidict2Array(input.composition)
+    return X ./ sum(X), input.MW
+end
+function _X_MW(input::species)
+    Xdict = input.name == "Air" ? Xair : Dict(input.name => 1.0)
+    X = Xidict2Array(Xdict)
+    return X ./ sum(X), input.MW
+end
+_X_MW(input::AbstractString) = _X_MW(species_in_spdict(input))
+function _X_MW(Xdict::Dict)
+    X = Xidict2Array(convert(Dict{String,Float64}, Xdict))
+    X = X ./ sum(X)
+    return X, dot(spdict.MW, X)
+end
+function _X_MW(X::AbstractVector{<:Real})
+    length(X) == Nspecies ||
+        error("Mole-fraction vector must have length $Nspecies (spdict order)")
+    Xn = Vector{Float64}(X) ./ sum(X)
+    return Xn, dot(spdict.MW, Xn)
+end

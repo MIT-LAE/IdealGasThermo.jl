@@ -33,7 +33,7 @@ See also [`Gas1D`](@ref).
 function Gas1D()
     Base.depwarn(
         "Gas1D is deprecated; use FrozenGas(DryAir) with the pure property " *
-        "functions (cp/h/s0/props, T_of_h, T_isentropic) instead. " *
+        "functions (cp/h/s0/props, temperature) instead. " *
         "Gas1D will be removed in v2.0 (ADR-0002).",
         :Gas1D,
     )
@@ -63,7 +63,7 @@ See also [`Gas1D`](@ref).
 function Gas1D(sp::composite_species)
     Base.depwarn(
         "Gas1D is deprecated; use FrozenGas(sp) with the pure property " *
-        "functions (cp/h/s0/props, T_of_h, T_isentropic) instead. " *
+        "functions (cp/h/s0/props, temperature) instead. " *
         "Gas1D will be removed in v2.0 (ADR-0002).",
         :Gas1D,
     )

@@ -28,11 +28,13 @@ include("utils.jl")
 export X2Y, Y2X
 include("thermoProps.jl")
 include("frozengas.jl")
-export FrozenGas, props, T_of_h, T_isentropic
-include("tabulatedgas.jl")
-export TabulatedGas, tabulate, T_of_h_interp, T_isentropic_interp
+export FrozenGas, props, temperature
+include("fastfrozengas.jl")
+export FastFrozenGas
 include("combustor.jl")
 export Combustor, products
+include("mixer.jl")
+export Mixer, mixed
 include("atmosphere.jl")
 
 gas = Gas()
@@ -40,5 +42,6 @@ gas.X = Xair
 const DryAir = generate_composite_species(gas.X, "Dry Air")
 export DryAir
 include("humidity.jl")
+export humid_air
 
 end

@@ -32,18 +32,39 @@ terms exactly.
 - **products** — `products(sys::Combustor, FAR) -> FrozenGas`: the
   combustion-product gas at a given FAR. Pure, zero-allocation, smooth in
   FAR (ForwardDiff through FAR works; `FrozenGas{TF}` widens its eltype).
-- **Inversion** — solving a property relation backwards for temperature:
-  `T_of_h` (given h) and `T_isentropic` (given T1 and pressure ratio, along
-  an isentrope with optional polytropic efficiency).
-- **TabulatedGas** — a `FrozenGas` plus two precomputed cubic-Hermite
-  *inverse* tables (h → T and s0 → T) built by `tabulate(gas; N, Tmin, Tmax)`.
-  Accelerates only the inversions; the forward functions forward to the
-  wrapped gas unchanged. Two tiers: the default `T_of_h`/`T_isentropic` use
-  the table as a Newton *seed* (exact answers, same convergence contract as
-  `FrozenGas`; out-of-range targets fall back to the cold-start solve), and
-  the opt-in `T_of_h_interp`/`T_isentropic_interp` are pure table lookups
-  (|ΔT/T| ≤ 1e-9 at N = 256; `DomainError` out of range — never silent
-  extrapolation).
+- **Mixer** — a precomputed two-stream mixing system (per-stream
+  mass-fraction `SVector`s + dense species data), built once from two
+  composition-bearing inputs. The pure replacement for the Dict-based
+  composition step of the legacy `gas_mixing`.
+- **mixed** — `mixed(sys::Mixer, mratio) -> FrozenGas`: the merged gas at
+  mass ratio `mratio = mass₂/mass₁`, via the mass-fraction law of mixtures
+  `Y = (Y₁ + mratio·Y₂)/(1 + mratio)` with the entropy of mixing recomputed
+  for the merged composition. Pure, zero-allocation, smooth in `mratio`.
+  `mixed(sys, 0)` is stream 1; stream 2 is the `mratio → ∞` limit. Does
+  *not* do the energy balance (outlet temperature) of legacy `gas_mixing` —
+  that is the caller's job (`temperature(gas, h = ...)` on the
+  mass-weighted enthalpy).
+- **humid air** — dry air (`Xair`) plus water vapor:
+  `humid_air(; SH, RH, T, P) -> FrozenGas`, a constructor (not a hot path)
+  taking either the specific humidity ω [kg water/kg dry air] or relative
+  humidity converted via the legacy August–Roche–Magnus
+  `saturation_vapor_pressure`. Same composition logic as the legacy
+  `generate_humid_air` (water at `ω/ε` moles per mole dry air, renormalized).
+- **temperature (the inversion verb)** — solving a property relation
+  backwards for temperature; the keyword names what is known:
+  `temperature(gas, h = ...)` (given enthalpy) and
+  `temperature(gas, T1 = ..., PR = ...; ηp)` (along an isentrope with
+  optional polytropic efficiency). One verb for every gas flavor — the
+  *type* selects the algorithm and tier, never the function name.
+  (Internal positional engines `T_of_h`/`T_isentropic` are unexported.)
+- **FastFrozenGas{mode}** — a `FrozenGas` plus two precomputed cubic-Hermite
+  *inverse* tables (h → T and s0 → T): `FastFrozenGas(gas; mode, N, Tmin,
+  Tmax)`. Accelerates only the inversions; the forward functions forward to
+  the wrapped gas unchanged. Modes: `:seeded` (default) uses the table as a
+  Newton *seed* (exact answers, same convergence contract as `FrozenGas`;
+  out-of-range targets fall back to the cold-start solve); `:fast` is pure
+  table lookup (|ΔT/T| ≲ 2e-9 at N = 256; `DomainError` out of range —
+  never silent extrapolation).
 
 ## Architecture terms (see docs/adr/)
 

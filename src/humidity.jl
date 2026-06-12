@@ -58,3 +58,47 @@ function generate_humid_air(
 
     return generate_composite_species(X, "Wet air with RH = $RH at ($T K; $(P/1000.0) kPa)")
 end  # function generate_humid_air
+
+"""
+    humid_air(; SH = nothing, RH = nothing, T = Tstd, P = Pstd) -> FrozenGas
+
+Humid-air [`FrozenGas`](@ref): dry air ([`Xair`](@ref Xair)) plus water
+vapor. Specify the humidity as exactly one of
+
+  - `SH` — specific humidity ω [kg water / kg dry air], or
+  - `RH` — relative humidity [-], converted at temperature `T` [K] and
+    pressure `P` [Pa] (standard day by default) through the legacy
+    [`saturation_vapor_pressure`](@ref)/[`specific_humidity`](@ref) model
+    (August–Roche–Magnus).
+
+The composition logic is the legacy [`generate_humid_air`](@ref) one: water
+at `SH/ε` moles per mole of dry air (`ε = MW_H2O/MW_air`) is merged into the
+dry-air composition and the result renormalized. `humid_air(SH = 0.0)` is
+exactly `FrozenGas(DryAir)`.
+
+This is a constructor, not a hot path: it consults the species database and
+allocates. Build the gas once; all its property functions are then pure in
+`(gas, T)`.
+
+```julia-repl
+julia> wet = humid_air(RH = 0.5, T = 303.15, P = 101325.0);
+
+julia> R(wet) > R(FrozenGas(DryAir)) # water is lighter than air
+true
+```
+"""
+function humid_air(; SH = nothing, RH = nothing, T = Tstd, P = Pstd)
+    count(isnothing, (SH, RH)) == 1 ||
+        error("Specify exactly one of SH (specific humidity) or RH (relative humidity)")
+    ω = isnothing(SH) ? specific_humidity(RH, T, P) : SH
+    ω ≥ 0 || error("Humidity must be non-negative, got specific humidity $ω")
+    Xwater = ω / ε # moles of H2O per mole of dry air
+    Xdict = mergewith(+, Xair, Dict("H2O" => Xwater))
+
+    X = zeros(Float64, Nspecies)
+    Xidict2Array!(Xdict, X) # normalizes
+
+    name = isnothing(SH) ? "Wet air with RH = $RH at ($T K; $(P/1000.0) kPa)" :
+           "Wet air with SH = $ω"
+    return FrozenGas(generate_composite_species(X, name))
+end  # function humid_air

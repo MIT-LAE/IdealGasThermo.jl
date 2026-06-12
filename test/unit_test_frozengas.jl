@@ -51,27 +51,27 @@ using ForwardDiff
     @testset "T_of_h inversion" begin
         air = FrozenGas(DryAir)
         for T in [250.0, 500.0, 999.5, 1000.5, 1600.0, 2200.0]
-            @test T_of_h(air, IdealGasThermo.h(air, T)) ≈ T rtol = 1e-10
+            @test IdealGasThermo.T_of_h(air, IdealGasThermo.h(air, T)) ≈ T rtol = 1e-10
         end
         # deterministic: same input, same output, bitwise
         hspec = IdealGasThermo.h(air, 1234.5)
-        @test T_of_h(air, hspec) === T_of_h(air, hspec)
+        @test IdealGasThermo.T_of_h(air, hspec) === IdealGasThermo.T_of_h(air, hspec)
     end
 
     @testset "isentropic relations" begin
         air = FrozenGas(DryAir)
         # identity: no pressure change, no temperature change
-        @test T_isentropic(air, 500.0, 1.0) ≈ 500.0 rtol = 1e-12
+        @test IdealGasThermo.T_isentropic(air, 500.0, 1.0) ≈ 500.0 rtol = 1e-12
         # round trip: s0(T2) = s0(T1) + R ln(PR)  ⟺  pressure_ratio inverts it
         for (T1, PR) in [(288.15, 12.0), (500.0, 30.0), (1600.0, 0.25), (900.0, 1.05)]
-            T2 = T_isentropic(air, T1, PR)
+            T2 = IdealGasThermo.T_isentropic(air, T1, PR)
             @test IdealGasThermo.pressure_ratio(air, T1, T2) ≈ PR rtol = 1e-10
         end
         # cross-validation against the established compress (ideal, ηp = 1)
         g1d = Gas1D()
         set_TP!(g1d, 288.15, 101325.0)
         IdealGasThermo.compress(g1d, 12.0)
-        @test T_isentropic(air, 288.15, 12.0) ≈ g1d.T rtol = 1e-7
+        @test IdealGasThermo.T_isentropic(air, 288.15, 12.0) ≈ g1d.T rtol = 1e-7
     end
 
     @testset "zero allocations after warmup" begin
@@ -82,8 +82,8 @@ using ForwardDiff
         @test measured(IdealGasThermo.s0, air, 600.0) == 0
         @test measured(IdealGasThermo.gamma, air, 600.0) == 0
         @test measured(props, air, 600.0) == 0
-        @test measured(T_of_h, air, 5e5) == 0
-        @test measured(T_isentropic, air, 288.15, 12.0) == 0
+        @test measured(IdealGasThermo.T_of_h, air, 5e5) == 0
+        @test measured(IdealGasThermo.T_isentropic, air, 288.15, 12.0) == 0
         @test measured(IdealGasThermo.pressure_ratio, air, 288.15, 600.0) == 0
     end
 
@@ -105,16 +105,16 @@ using ForwardDiff
         # inversion derivatives via implicit function theorem: dT/dh = 1/cp
         for T in [400.0, 1500.0]
             hT = IdealGasThermo.h(air, T)
-            @test D(hh -> T_of_h(air, hh), hT) ≈
+            @test D(hh -> IdealGasThermo.T_of_h(air, hh), hT) ≈
                   1 / IdealGasThermo.cp(air, T) rtol = 1e-10
         end
         # T_isentropic: ∂T2/∂PR = R·T2 / (ηp·PR·cp(T2)) from s0(T2) = s0(T1) + R ln(PR)/ηp
         T1, PR = 288.15, 12.0
-        T2 = T_isentropic(air, T1, PR)
-        @test D(pr -> T_isentropic(air, T1, pr), PR) ≈
+        T2 = IdealGasThermo.T_isentropic(air, T1, PR)
+        @test D(pr -> IdealGasThermo.T_isentropic(air, T1, pr), PR) ≈
               air.R * T2 / (PR * IdealGasThermo.cp(air, T2)) rtol = 1e-10
         # ∂T2/∂T1 = cp(T1)·T2 / (cp(T2)·T1)
-        @test D(t1 -> T_isentropic(air, t1, PR), T1) ≈
+        @test D(t1 -> IdealGasThermo.T_isentropic(air, t1, PR), T1) ≈
               IdealGasThermo.cp(air, T1) * T2 / (IdealGasThermo.cp(air, T2) * T1) rtol = 1e-10
     end
 
@@ -127,8 +127,8 @@ using ForwardDiff
         # Dual-typed evaluation stays allocation-free through the rules
         @test measured(D, t -> IdealGasThermo.h(air, t), 600.0) == 0
         @test measured(D, t -> props(air, t).h, 600.0) == 0
-        @test measured(D, hh -> T_of_h(air, hh), 5e5) == 0
-        @test measured(D, pr -> T_isentropic(air, 288.15, pr), 12.0) == 0
+        @test measured(D, hh -> IdealGasThermo.T_of_h(air, hh), 5e5) == 0
+        @test measured(D, pr -> IdealGasThermo.T_isentropic(air, 288.15, pr), 12.0) == 0
         # nested duals: d²h/dT² == dcp/dT
         d2h = D(t -> D(s -> IdealGasThermo.h(air, s), t), 1600.0)
         @test d2h ≈ D(t -> IdealGasThermo.cp(air, t), 1600.0) rtol = 1e-10
