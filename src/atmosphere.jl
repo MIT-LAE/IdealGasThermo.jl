@@ -1,18 +1,20 @@
 """
     standard_atmosphere(z, alt_type = "geometric")
 Calculate the gas state at a given desired altitude in the atmosphere using the 1976
-US Standard Atmosphere. Model valid between -5 and 86 km in geometric altitude. Accepts 
-geometric altitude ("alt_type == "geometric") or geopotential altitude ("alt_type == "geopotential"). 
+US Standard Atmosphere. Model valid between -5 and 86 km in geometric altitude. Accepts
+geometric altitude ("alt_type == "geometric") or geopotential altitude ("alt_type == "geopotential").
 Model from: `https://ntrs.nasa.gov/citations/19770009539`
+
+Returns a [`GasState`](@ref) of dry air at the altitude's (T, P).
 """
 function standard_atmosphere(z, alt_type = "geometric")
 
     g = 9.80665 #Acceleration of gravity on Earth surface (z = 0)
     R_e = 6.356766e6 #Radius of Earth
 
-    #Initialize gas (composition does not change)
-    gas = Gas1D()
-    R = gas.R
+    #Composition does not change with altitude
+    air = FrozenGas(DryAir)
+    R = air.R
 
     #Calculate geopotential altitude
     if alt_type == "geometric"
@@ -52,7 +54,5 @@ function standard_atmosphere(z, alt_type = "geometric")
         P = P0 * exp(-g * (H - H0) / (R * T))
     end
 
-    #set the gas to the correct T and P
-    set_TP!(gas, T, P)
-    return gas
+    return GasState(air, T, P)
 end
