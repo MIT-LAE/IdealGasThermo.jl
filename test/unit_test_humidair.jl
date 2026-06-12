@@ -1,3 +1,8 @@
+# NOTE: substantial parts of this file are MIGRATION TESTS — they pin the
+# pure core to the legacy implementation (vitiated_species / Gas1D /
+# set_Δh! era) to prove the refactor preserved behavior. They retire with
+# the legacy layer in v2.0. The physics itself is guarded independently in
+# unit_test_properties.jl.
 @testset "humid_air" begin
 
     @testset "zero humidity reproduces dry air" begin
