@@ -31,6 +31,9 @@ include("frozengas.jl")
 export FrozenGas, props, temperature
 include("fastfrozengas.jl")
 export FastFrozenGas
+include("gasstate.jl")
+export GasState, entropy, density
+export compress, expand, expand_to, add_heat, add_work, extract_work
 include("combustor.jl")
 export Combustor, products
 include("mixer.jl")

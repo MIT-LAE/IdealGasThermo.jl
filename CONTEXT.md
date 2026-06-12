@@ -51,12 +51,38 @@ terms exactly.
   `saturation_vapor_pressure`. Same composition logic as the legacy
   `generate_humid_air` (water at `ω/ε` moles per mole dry air, renormalized).
 - **temperature (the inversion verb)** — solving a property relation
-  backwards for temperature; the keyword names what is known:
-  `temperature(gas, h = ...)` (given enthalpy) and
-  `temperature(gas, T1 = ..., PR = ...; ηp)` (along an isentrope with
-  optional polytropic efficiency). One verb for every gas flavor — the
-  *type* selects the algorithm and tier, never the function name.
-  (Internal positional engines `T_of_h`/`T_isentropic` are unexported.)
+  backwards for temperature: `temperature(gas, h = ...)` (given enthalpy).
+  One verb for every gas flavor — the *type* selects the algorithm and
+  tier, never the function name. (Internal positional engines
+  `T_of_h`/`T_isentropic` are unexported.) The former isentrope form
+  (`T1 = ..., PR = ...; ηp`) is removed (ADR-0004): a polytropic change of
+  state is a *process*, not an inversion — use the process verbs
+  `compress`/`expand`.
+- **process verbs** — the three-process taxonomy on the pure core
+  (ADR-0004), each pure and allocation-free, each with the direction in
+  the verb, never in the number:
+  - *ratio-specified*: `compress(gas, T1, PR; ηp)` and
+    `expand(gas, T1, PR; ηp)` — scalar kernels `T1 -> T2`, **both with
+    PR ≥ 1** (`ArgumentError` otherwise); `expand` uses the expansion ηp
+    convention `s0(T2) = s0(T1) + R·ηp·ln(1/PR)`, matching the legacy
+    `expand(gas, 1/PR, ηp)`. State-layer methods on `GasState` update the
+    pressure rail too; `expand_to(st, P2; ηp)` is the nozzle convenience
+    (target pressure instead of ratio, requires P2 ≤ st.P).
+  - *work-specified*: `add_work(st, w; ηp)` / `extract_work(st, w; ηp)`,
+    `w ≥ 0` [J/kg]; enthalpy ±w with the pressure on the polytrope
+    `P2 = P1·exp(K/R·Δs0)`, K = ηp adding / 1/ηp extracting (the legacy
+    `set_Δh!` conventions, owned by the verbs).
+  - *heat at constant pressure*: `add_heat(st, q)`, signed `q` [J/kg].
+- **GasState** — `GasState(gas, T, P)`: an immutable (substance, T, P)
+  *value* record — ergonomics, not architecture (ADR-0004). The substance
+  stays a pure set of property curves; the record only makes the caller's
+  (T, P) pair travel together through a process chain so the T-rail and
+  P-rail cannot diverge. `isbits` for `FrozenGas{Float64}`; never mutated —
+  every process verb returns a NEW state. Read-only accessor functions
+  (no getproperty magic): `cp/h/s0/gamma/R` at `st.T`, plus
+  `entropy(st) = s0(T) − R·ln(P/Pstd)` and `density(st) = P/(R·T)`
+  (exported full words; `s`/`rho` are unexported aliases). Stores no
+  derived properties — that would be the caching ADR-0001 forbids.
 - **FastFrozenGas{mode}** — a `FrozenGas` plus two precomputed cubic-Hermite
   *inverse* tables (h → T and s0 → T): `FastFrozenGas(gas; mode, N, Tmin,
   Tmax)`. Accelerates only the inversions; the forward functions forward to
@@ -68,6 +94,15 @@ terms exactly.
 
 ## Architecture terms (see docs/adr/)
 
+- **Substance vs state**: a `FrozenGas` is a *set of property curves*, not a
+  parcel — it holds only constants of the composition (coefficients, MW, R,
+  Hf), never T or P. Temperature is an **argument, not an attribute**:
+  `h(gas, T)` reads as h_gas(T). The only thermodynamic state in the system
+  lives with the caller (in a cycle solver: the solver's own unknown
+  vector). Corollary: caching immutable facts about the *curves* (e.g.
+  `FastFrozenGas` inverse tables, `gas.R`) is fine; caching facts about
+  "the current state" (the old `Tarray`/`gas.cp` pattern) is what the
+  architecture forbids.
 - The **pure core** (`FrozenGas` + property functions + inversions) is the
   deep module everything else composes over.
 - The mutable `Gas`/`Gas1D` types are the legacy *stateful convenience layer*;

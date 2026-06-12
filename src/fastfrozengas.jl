@@ -182,7 +182,7 @@ function T_isentropic(fg::FastFrozenGas{:seeded}, T1::AbstractFloat, PR::Abstrac
             return T
         end
     end
-    error("temperature(fg, T1 = $T1, PR = $PR) did not converge (last T = $T)")
+    error("T_isentropic(fg, T1 = $T1, PR = $PR) did not converge (last T = $T)")
 end
 
 # ---- :fast mode — pure Hermite lookup, loud out of range -------------------
@@ -202,7 +202,7 @@ function T_isentropic(fg::FastFrozenGas{:fast}, T1::AbstractFloat, PR::AbstractF
     target = s0(gas, T1) + gas.R * log(PR) / ηp
     if !(fg.s0min ≤ target ≤ fg.s0max)
         throw(DomainError(target,
-            "temperature(fg, T1 = $T1, PR = $PR, ηp = $ηp): target s0 outside " *
+            "T_isentropic(fg, T1 = $T1, PR = $PR, ηp = $ηp): target s0 outside " *
             "the tabulated range [$(fg.s0min), $(fg.s0max)] J/kg/K; use the " *
             ":seeded mode for the exact out-of-range solve or rebuild with a " *
             "wider [Tmin, Tmax]"))
