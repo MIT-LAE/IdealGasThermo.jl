@@ -29,6 +29,8 @@ export X2Y, Y2X
 include("thermoProps.jl")
 include("frozengas.jl")
 export FrozenGas, props, T_of_h, T_isentropic
+include("combustor.jl")
+export Combustor, products
 include("atmosphere.jl")
 
 gas = Gas()

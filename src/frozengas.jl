@@ -21,13 +21,18 @@ no state, no global lookups, zero allocations, generic over `Real`.
 Enthalpy datum: formation-inclusive (CEA-style) — `h(gas, 298.15)` is the
 mixture's mass-specific formation enthalpy. Sensible enthalpy from 298.15 K
 is `h(gas, T) - h(gas, 298.15)`.
+
+The field eltype `TF` is `Float64` for ordinary use (keeping the struct
+`isbits`); it widens to e.g. `ForwardDiff.Dual` when the *composition*
+itself carries derivative information, as in [`products`](@ref)
+differentiated with respect to FAR.
 """
-struct FrozenGas
-    alow::SVector{9,Float64}  # mass-scaled coefficients, T < Tmid (1000 K)
-    ahigh::SVector{9,Float64} # mass-scaled coefficients, T ≥ Tmid
-    MW::Float64               # molecular weight [g/mol]
-    R::Float64                # specific gas constant [J/kg/K]
-    Hf::Float64               # formation enthalpy at 298.15 K [J/mol]
+struct FrozenGas{TF<:Real}
+    alow::SVector{9,TF}  # mass-scaled coefficients, T < Tmid (1000 K)
+    ahigh::SVector{9,TF} # mass-scaled coefficients, T ≥ Tmid
+    MW::TF               # molecular weight [g/mol]
+    R::TF                # specific gas constant [J/kg/K]
+    Hf::TF               # formation enthalpy at 298.15 K [J/mol]
 end
 
 function FrozenGas(sp::AbstractSpecies)

@@ -20,12 +20,23 @@ end
 """
     Gas1D()
 
-Constructor that returns a `Gas1D` type representing 
+Constructor that returns a `Gas1D` type representing
 Dry Air at standard conditions
+
+!!! warning "Deprecated"
+    `Gas1D` is deprecated (see ADR-0002): use [`FrozenGas`](@ref) with the
+    pure property functions instead, e.g. `air = FrozenGas(DryAir);
+    props(air, T)`. `Gas1D` will be removed in v2.0.
 
 See also [`Gas1D`](@ref).
 """
 function Gas1D()
+    Base.depwarn(
+        "Gas1D is deprecated; use FrozenGas(DryAir) with the pure property " *
+        "functions (cp/h/s0/props, T_of_h, T_isentropic) instead. " *
+        "Gas1D will be removed in v2.0 (ADR-0002).",
+        :Gas1D,
+    )
     Gas1D(
         DryAir,
         Pstd,
@@ -41,12 +52,21 @@ end
 """
     Gas1D(sp::composite_species)
 
-Constructor that returns a `Gas` type representing 
-Dry Air at standard conditions
+Constructor that returns a `Gas1D` initialized with the given composite
+species at standard conditions.
+
+!!! warning "Deprecated"
+    `Gas1D` is deprecated (see ADR-0002): use `FrozenGas(sp)` instead.
 
 See also [`Gas1D`](@ref).
 """
 function Gas1D(sp::composite_species)
+    Base.depwarn(
+        "Gas1D is deprecated; use FrozenGas(sp) with the pure property " *
+        "functions (cp/h/s0/props, T_of_h, T_isentropic) instead. " *
+        "Gas1D will be removed in v2.0 (ADR-0002).",
+        :Gas1D,
+    )
     Gas1D(
         sp,
         Pstd,
