@@ -71,6 +71,46 @@ using ForwardDiff
         end
     end
 
+    @testset "Dual-carrying gas inversions (full three-term IFT)" begin
+        # products(sys, FAR::Dual) yields a FrozenGas{<:Dual}: the gas's own
+        # coefficients carry the FAR-tangent. The inversion verbs must then add
+        # the "composition moves" IFT term. Contract: AD == central FD, and the
+        # burner case matches the hand-derived oracle.
+        sys = Combustor("CH4", DryAir)
+        air = FrozenGas(DryAir)
+        D = ForwardDiff.derivative
+        δ = 1e-6
+
+        # Burner energy balance (formation-inclusive datum): T4 such that the
+        # products at FAR have enthalpy h4(FAR). Inverting through a Dual gas
+        # exercises the Dual-gas + Dual-target path.
+        T3 = 800.0
+        hA = IdealGasThermo.h(air, T3)
+        CH4 = species_in_spdict("CH4")
+        hF = 1000 * CH4.Hf / CH4.MW           # fuel at 298.15 K (pure formation)
+        h4(far) = (hA + far * hF) / (1 + far)
+        T4of(far) = temperature(products(sys, far), h = h4(far))
+
+        far = 0.03
+        dT4_ad = D(T4of, far)
+        dT4_fd = (T4of(far + δ) - T4of(far - δ)) / (2δ)
+        @test dT4_ad ≈ dT4_fd rtol = 1e-7
+        # Hand-derived IFT oracle (also = central FD to 11 digits): see the
+        # walkthrough far-burner / fix-correct nodes.
+        @test dT4_ad ≈ 30725.1137 rtol = 1e-6
+        # The result is a plain number, NOT a nested Dual (the old bug).
+        @test dT4_ad isa Float64
+
+        # Dual gas + plain-Float target: invert a moving gas to a fixed enthalpy.
+        hfix = h4(far)
+        Tfix(far) = temperature(products(sys, far), h = hfix)
+        @test D(Tfix, far) ≈ (Tfix(far + δ) - Tfix(far - δ)) / (2δ) rtol = 1e-7
+
+        # Dual gas through T_isentropic: compress the products from T1 by PR.
+        Tisen(far) = IdealGasThermo.T_isentropic(products(sys, far), 1400.0, 8.0)
+        @test D(Tisen, far) ≈ (Tisen(far + δ) - Tisen(far - δ)) / (2δ) rtol = 1e-6
+    end
+
     @testset "incomplete combustion (ηburn ≠ 1)" begin
         FAR, ηburn = 0.03, 0.9
         sys = Combustor("CH4", "Air"; ηburn = ηburn)

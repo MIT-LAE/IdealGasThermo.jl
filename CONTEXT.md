@@ -116,3 +116,24 @@ terms exactly.
   a package extension that dispatches to closed-form derivatives
   (dh/dT = cp, dϕ/dT = cp/T) and implicit-function-theorem rules for
   inversions — never by differentiating a Newton loop.
+- **Dual-carrying gas** — a `FrozenGas{<:Dual}`, i.e. a substance whose
+  *coefficients themselves* carry a tangent, as produced by
+  `products(sys, FAR::Dual)` (the product composition depends on FAR, so the
+  mass-scaled NASA-9 coefficients, MW, R, and Hf all carry the FAR-derivative).
+  The parametric eltype `FrozenGas{TF<:Real}` is what makes this legal: a
+  Dual-valued argument simply widens the gas. Forward property reads through a
+  Dual-carrying gas are intrinsically cheap because every property is **linear
+  in the coefficients** (the lone nonlinearity, `log T`, rides the temperature
+  rail), so the tangent propagates by scale-and-add with no transcendentals.
+  The inversions (`temperature`/`T_of_h`, `T_isentropic`) need the **full
+  three-term IFT rule**: the constant-substance rules account only for the
+  *target* moving and silently drop the *composition moves* term, which when
+  the gas is Dual-typed produces a nested-Dual result instead of a number. The
+  extension's substance-Dual rules dispatch on `FrozenGas{<:Dual}` and add that
+  term —
+  `∂T = (partials(h_spec) − partials(h(gas, T*))) / cp(gas₀, T*)` for
+  `T_of_h` — while keeping the Newton loop on the value rail (strip all
+  tangents, solve once in `Float64`, attach the closed-form tangent at `T*`
+  via one forward evaluation). This preserves the split-rule speed: the
+  substance-Dual inversion is ~36× faster than differentiating through the
+  loop and zero-allocation, within ~13% of the constant-substance baseline.
