@@ -4,6 +4,7 @@
 # that). Randomized with a fixed seed and deliberately small N: each @test
 # here is a distinct physical claim, not a coverage statistic.
 using Random
+using ForwardDiff
 
 @testset "physics properties (randomized, seeded)" begin
 
@@ -158,6 +159,47 @@ using Random
         # beyond-stoichiometric FAR would need negative O2 — errors loudly
         # rather than returning an unphysical composition
         @test_throws DomainError products(sysCH4, 0.5)
+    end
+
+    @testset "Dual-carrying gas: AD inversions match finite differences" begin
+        # products(sys, FAR::Dual) yields a FrozenGas{<:Dual} whose coefficients
+        # carry the FAR-tangent, so inverting through it exercises the full
+        # three-term IFT rule (the "composition moves" term). The invariant that
+        # actually defines the rule's correctness — independent of fuel, oxidizer
+        # composition, and the underlying NASA-9 data — is AD == central FD. (A
+        # single pinned physics value like dT4/dFAR would instead track
+        # thermo.inp and the air composition, not the rule.) We also assert the
+        # result is a real number, not the nested-Dual tree the constant-
+        # substance rule produced for a Dual-carrying gas.
+        D = ForwardDiff.derivative
+        δ = 1e-6
+        fdcheck(f, x) = (f(x + δ) - f(x - δ)) / (2δ)
+        for fuel in ["CH4", "H2", "Jet-A(g)"]   # distinct C/H/O ⟹ distinct ∂X/∂FAR
+            sys = Combustor(fuel, DryAir)
+            fsp = species_in_spdict(fuel)
+            hF = 1000 * fsp.Hf / fsp.MW
+            # Stay sub-stoichiometric for the leanest-ceiling fuel in the pool
+            # (H2 reaches stoichiometric at FAR ≈ 0.029; beyond it `products`
+            # correctly throws on negative O₂).
+            FAR0 = uni(0.005, 0.02)
+
+            # (1) burner energy balance: Dual gas + Dual target
+            hA = IdealGasThermo.h(air, uni(500.0, 900.0))
+            T4of(far) = temperature(products(sys, far), h = (hA + far * hF) / (1 + far))
+            d1 = D(T4of, FAR0)
+            @test d1 isa Real                       # not a nested Dual
+            @test d1 ≈ fdcheck(T4of, FAR0) rtol = 1e-6
+
+            # (2) Dual gas + plain-Float target: invert a moving gas to fixed h
+            hfix = IdealGasThermo.h(products(sys, FAR0), uni(1200.0, 1900.0))
+            Tfix(far) = temperature(products(sys, far), h = hfix)
+            @test D(Tfix, FAR0) ≈ fdcheck(Tfix, FAR0) rtol = 1e-6
+
+            # (3) Dual gas through the isentropic inversion
+            T1, PR = uni(1100.0, 1500.0), uni(2.0, 10.0)
+            Tisen(far) = IdealGasThermo.T_isentropic(products(sys, far), T1, PR)
+            @test D(Tisen, FAR0) ≈ fdcheck(Tisen, FAR0) rtol = 1e-6
+        end
     end
 
 end
