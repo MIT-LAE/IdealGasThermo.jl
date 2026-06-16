@@ -91,9 +91,16 @@ core, blocking feature parity for compressible-flow cycle code:
   `stagnation_state`/`static_state`/`mach` over `GasState`, with the same
   exactness and zero-allocation guarantees as the rest of the pure core. No
   constant-γ approximation enters anywhere.
-- `src/FlowStations.jl` (orphaned, constant-γ) and `gas_Mach!` (mutable,
-  `ηp`-coupled) are superseded; they remain only as legacy until the v2.0
-  removal of the mutable layer.
+- `src/FlowStations.jl` (orphaned, constant-γ) is **deleted** (2026-06-16):
+  its `isenTR`/`isenPR` were the rejected constant-γ approximation and its
+  `get_static` is subsumed by `static_state` — nothing was lost. The one
+  concept it held that the pure core does *not* have — a **flow station that
+  carries geometry and a flow rate** (cross-sectional area, velocity, mass
+  flux ρ·A·V) — is intentionally out of scope: a `GasState` is `(gas, T, P)`
+  only. That flow-station record belongs upstream in **PowerCycles.jl**; do
+  not re-add an area/velocity-carrying state to this package. The legacy
+  mutable `gas_Mach!` remains only as legacy until the v2.0 removal of the
+  mutable layer.
 - The ratio verbs now answer both efficiency questions a turbomachinery
   designer asks, without a second verb name — the convention lives in the
   keyword, the direction still lives in the verb (ADR-0004).
