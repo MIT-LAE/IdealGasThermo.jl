@@ -1,7 +1,7 @@
 # Gas dynamics on the pure core: speed of sound (in frozengas.jl), Mach
 # number, and the `static_state` ↔ `stagnation_state` pair. These supersede
-# the orphaned legacy FlowStations.jl (isenTR/isenPR/get_static) and
-# gas_Mach!. See docs/adr/0005.
+# the legacy constant-γ stagnation helpers (isenTR/isenPR/get_static) and the
+# mutable gas_Mach!. See docs/adr/0005.
 #
 # Stagnation is treated as an *isentropic reference state* (textbook
 # definition): total enthalpy is the static enthalpy plus ½V², and the total
