@@ -67,6 +67,7 @@ Specific gas constant [J/kg/K] of the wrapped [`FrozenGas`](@ref).
 @inline h(fg::FastFrozenGas, T::Real) = h(fg.gas, T)
 @inline s0(fg::FastFrozenGas, T) = s0(fg.gas, T)
 @inline gamma(fg::FastFrozenGas, T) = gamma(fg.gas, T)
+@inline speed_of_sound(fg::FastFrozenGas, T) = speed_of_sound(fg.gas, T)
 @inline props(fg::FastFrozenGas, T) = props(fg.gas, T)
 @inline pressure_ratio(fg::FastFrozenGas, T1, T2) = pressure_ratio(fg.gas, T1, T2)
 

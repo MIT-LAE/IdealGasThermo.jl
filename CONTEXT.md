@@ -67,7 +67,12 @@ terms exactly.
     convention `s0(T2) = s0(T1) + R·ηp·ln(1/PR)`, matching the legacy
     `expand(gas, 1/PR, ηp)`. State-layer methods on `GasState` update the
     pressure rail too; `expand_to(st, P2; ηp)` is the nozzle convenience
-    (target pressure instead of ratio, requires P2 ≤ st.P).
+    (target pressure instead of ratio, requires P2 ≤ st.P). The loss model
+    is **either** polytropic `ηp` (default) **or** isentropic `ηs`, never
+    both (`ArgumentError`; ADR-0005): `ηs` degrades the ideal enthalpy
+    change to the *same* PR (compressor `Δh = Δh_ideal/ηs`, turbine
+    `Δh = ηs·Δh_ideal`), so the outlet pressure is identical to the `ηp`
+    case and only the temperature differs.
   - *work-specified*: `add_work(st, w; ηp)` / `extract_work(st, w; ηp)`,
     `w ≥ 0` [J/kg]; enthalpy ±w with the pressure on the polytrope
     `P2 = P1·exp(K/R·Δs0)`, K = ηp adding / 1/ηp extracting (the legacy
@@ -91,6 +96,26 @@ terms exactly.
   out-of-range targets fall back to the cold-start solve); `:fast` is pure
   table lookup (|ΔT/T| ≲ 2e-9 at N = 256; `DomainError` out of range —
   never silent extrapolation).
+- **speed of sound** — `speed_of_sound(gas, T) = √(γ·R·T)` [m/s]: a *pure
+  property* of `(gas, T)` (alongside `cp`/`gamma`), needing no pressure;
+  forwards through `FastFrozenGas` and has a `GasState` accessor
+  `speed_of_sound(st)`. `mach(gas, T, V) = V/a` (and `mach(st, V)`) is the
+  Mach number of a flow of speed `V`.
+- **stagnation_state / static_state** — the gas-dynamics pair on `GasState`
+  (ADR-0005), built from the enthalpy/entropy curves, **not** the constant-γ
+  relations `1 + ½(γ−1)M²` (which ADR-0004 rejected the analog of).
+  `stagnation_state(st, M)` brings the static flow (speed `V = M·a`)
+  **isentropically** to rest: total enthalpy `h_t = h(st) + ½V²` (Tt by the
+  h-inversion), entropy preserved (`Pt = P·exp((s0(Tt) − s0(T))/R)`).
+  `static_state(st, M)` is the inverse — the static state at Mach `M` whose
+  stagnation state is `st`, by a bounded Newton solve of
+  `h(T) + ½(M·a(T))² = h(st)`. They are exact inverses to the inversion
+  tolerance and reproduce the legacy `gas_Mach!(gas, 0, M, 1)`. A stagnation
+  state is a **loss-free reference** — it carries no efficiency; a lossy ram
+  is composed separately (recovery factor or `expand`). Named `…_state` (not
+  bare `static`/`stagnation`) to avoid shadowing common identifiers and to say
+  they return a `GasState`. Supersede the orphaned, never-`include`d
+  `FlowStations.jl`.
 
 ## Architecture terms (see docs/adr/)
 
