@@ -79,6 +79,15 @@ Specific gas constant [J/kg/K] of the state's gas.
 @inline R(st::GasState) = R(st.gas)
 
 """
+    speed_of_sound(st::GasState)
+
+Speed of sound [m/s] of the state's gas at `st.T` — a property of the gas
+and temperature only (see [`speed_of_sound(gas, T)`](@ref speed_of_sound)),
+needing no pressure.
+"""
+@inline speed_of_sound(st::GasState) = speed_of_sound(st.gas, st.T)
+
+"""
     entropy(st::GasState)
 
 Full specific entropy `s = s0(T) − R·ln(P/Pstd)` [J/kg/K] — the entropy
@@ -110,47 +119,102 @@ Mass density `ρ = P/(R·T)` [kg/m³] from the ideal-gas law (`P` [Pa], `R`
 # compress/expand methods on the mutable AbstractGas layer live in turbo.jl
 const PureGas = Union{FrozenGas,FastFrozenGas}
 
+# Efficiency resolution shared by compress/expand. The ratio verbs accept
+# *either* a polytropic efficiency `ηp` (entropy distributed along the path)
+# *or* an isentropic efficiency `ηs` (ideal enthalpy change degraded at the
+# same pressure ratio) — never both (ADR-0005). `nothing` defaults stand in
+# for "unspecified" so the mutual exclusion is detectable; an unspecified
+# pair means the loss-free isentrope (ηp = 1). These compile away per
+# specialization (the `=== nothing` tests fold to constants), so the verbs
+# stay zero-allocation.
+@inline _resolve_ηp(ηp) = ηp === nothing ? 1.0 : ηp
+@inline function _check_one_efficiency(ηp, ηs, verb)
+    ηp === nothing ||
+        ηs === nothing ||
+        throw(
+            ArgumentError(
+                "$verb: specify at most one efficiency — ηp (polytropic) or " *
+                "ηs (isentropic), not both",
+            ),
+        )
+end
+
 """
     compress(gas, T1, PR; ηp = 1.0) -> T2
+    compress(gas, T1, PR; ηs)       -> T2
 
-Temperature [K] after polytropic compression of a [`FrozenGas`](@ref) or
+Temperature [K] after compression of a [`FrozenGas`](@ref) or
 [`FastFrozenGas`](@ref) from `T1` [K] by pressure ratio `PR ≥ 1`
 (`ArgumentError` otherwise — to lower the pressure, use [`expand`](@ref):
-the direction lives in the verb, never in the number). Solves
-`s0(T2) = s0(T1) + R·ln(PR)/ηp` with `ηp` the compressor polytropic
-efficiency. Pure, zero-allocation; arguments may be ForwardDiff `Dual`s
+the direction lives in the verb, never in the number).
+
+The loss model is chosen by *which* efficiency keyword is given (at most one;
+`ArgumentError` if both — ADR-0005):
+
+- **polytropic `ηp`** (default `ηp = 1`, the isentrope): solves
+  `s0(T2) = s0(T1) + R·ln(PR)/ηp`.
+- **isentropic `ηs`**: the ideal enthalpy rise to the same `PR` is degraded
+  by `1/ηs`, `h(T2) = h(T1) + (h(T2s) − h(T1))/ηs` with `T2s` the loss-free
+  outlet. Both conventions reach the same outlet pressure `P1·PR` (only the
+  temperature differs); `ηs = 1` reproduces the isentrope.
+
+Pure, zero-allocation; arguments may be ForwardDiff `Dual`s
 (implicit-function-theorem rules from the package extension).
 """
-function compress(gas::PureGas, T1, PR; ηp = 1.0)
+function compress(gas::PureGas, T1, PR; ηp = nothing, ηs = nothing)
     PR ≥ 1 || throw(
         ArgumentError(
             "compress: pressure ratio must be ≥ 1 (got PR = $PR); " *
             "both process verbs take ratios ≥ 1 — use expand to lower the pressure",
         ),
     )
-    T_isentropic(gas, T1, PR; ηp = ηp)
+    _check_one_efficiency(ηp, ηs, "compress")
+    if ηs === nothing
+        T_isentropic(gas, T1, PR; ηp = _resolve_ηp(ηp))
+    else
+        h1 = h(gas, T1)
+        T2s = T_isentropic(gas, T1, PR) # loss-free outlet at this PR
+        T_of_h(gas, h1 + (h(gas, T2s) - h1) / ηs)
+    end
 end
 
 """
     expand(gas, T1, PR; ηp = 1.0) -> T2
+    expand(gas, T1, PR; ηs)       -> T2
 
-Temperature [K] after polytropic expansion of a [`FrozenGas`](@ref) or
+Temperature [K] after expansion of a [`FrozenGas`](@ref) or
 [`FastFrozenGas`](@ref) from `T1` [K] by pressure ratio `PR ≥ 1` — the
 ratio of inlet to outlet pressure, so `PR = 4` quarters the pressure
-(`ArgumentError` if `PR < 1`; to raise the pressure use
-[`compress`](@ref)). Solves `s0(T2) = s0(T1) + R·ηp·ln(1/PR)` with `ηp`
-the turbine polytropic efficiency — the expansion convention, matching the
-legacy `expand(gas::AbstractGas, 1/PR, ηp)`. Pure, zero-allocation;
-arguments may be ForwardDiff `Dual`s.
+(`ArgumentError` if `PR < 1`; to raise the pressure use [`compress`](@ref)).
+
+The loss model is chosen by *which* efficiency keyword is given (at most one;
+`ArgumentError` if both — ADR-0005):
+
+- **polytropic `ηp`** (default `ηp = 1`, the isentrope): solves
+  `s0(T2) = s0(T1) + R·ηp·ln(1/PR)` — the expansion convention, matching the
+  legacy `expand(gas::AbstractGas, 1/PR, ηp)`.
+- **isentropic `ηs`**: the actual enthalpy drop is `ηs` times the loss-free
+  drop to the same `PR`, `h(T2) = h(T1) − ηs·(h(T1) − h(T2s))` with `T2s` the
+  loss-free outlet. Both conventions reach the same outlet pressure `P1/PR`
+  (only the temperature differs); `ηs = 1` reproduces the isentrope.
+
+Pure, zero-allocation; arguments may be ForwardDiff `Dual`s.
 """
-function expand(gas::PureGas, T1, PR; ηp = 1.0)
+function expand(gas::PureGas, T1, PR; ηp = nothing, ηs = nothing)
     PR ≥ 1 || throw(
         ArgumentError(
             "expand: pressure ratio must be ≥ 1 (got PR = $PR); " *
             "both process verbs take ratios ≥ 1 — use compress to raise the pressure",
         ),
     )
-    T_isentropic(gas, T1, inv(PR); ηp = inv(ηp))
+    _check_one_efficiency(ηp, ηs, "expand")
+    if ηs === nothing
+        T_isentropic(gas, T1, inv(PR); ηp = inv(_resolve_ηp(ηp)))
+    else
+        h1 = h(gas, T1)
+        T2s = T_isentropic(gas, T1, inv(PR)) # loss-free outlet at this PR
+        T_of_h(gas, h1 - ηs * (h1 - h(gas, T2s)))
+    end
 end
 
 # ---------------------------------------------------------------------------
@@ -159,42 +223,49 @@ end
 
 """
     compress(st::GasState, PR; ηp = 1.0) -> GasState
+    compress(st::GasState, PR; ηs)       -> GasState
 
-Polytropic compression of a state by pressure ratio `PR ≥ 1`: a new state
-at `(T2, P·PR)` with `T2` from the scalar [`compress`](@ref) verb. The
-input state is untouched.
+Compression of a state by pressure ratio `PR ≥ 1`: a new state at
+`(T2, P·PR)` with `T2` from the scalar [`compress`](@ref) verb. The loss
+model follows the efficiency keyword — polytropic `ηp` (default, the
+isentrope) or isentropic `ηs`, at most one (ADR-0005). The outlet pressure
+`P·PR` is the same either way. The input state is untouched.
 """
-compress(st::GasState, PR; ηp = 1.0) =
-    GasState(st.gas, compress(st.gas, st.T, PR; ηp = ηp), st.P * PR)
+compress(st::GasState, PR; ηp = nothing, ηs = nothing) =
+    GasState(st.gas, compress(st.gas, st.T, PR; ηp = ηp, ηs = ηs), st.P * PR)
 
 """
     expand(st::GasState, PR; ηp = 1.0) -> GasState
+    expand(st::GasState, PR; ηs)       -> GasState
 
-Polytropic expansion of a state by pressure ratio `PR ≥ 1` (inlet over
-outlet pressure): a new state at `(T2, P/PR)` with `T2` from the scalar
-[`expand`](@ref) verb in the expansion ηp convention. The input state is
-untouched. See [`expand_to`](@ref) to name the outlet pressure instead of
-the ratio.
+Expansion of a state by pressure ratio `PR ≥ 1` (inlet over outlet
+pressure): a new state at `(T2, P/PR)` with `T2` from the scalar
+[`expand`](@ref) verb. The loss model follows the efficiency keyword —
+polytropic `ηp` (default, the isentrope) or isentropic `ηs`, at most one
+(ADR-0005). The input state is untouched. See [`expand_to`](@ref) to name
+the outlet pressure instead of the ratio.
 """
-expand(st::GasState, PR; ηp = 1.0) =
-    GasState(st.gas, expand(st.gas, st.T, PR; ηp = ηp), st.P / PR)
+expand(st::GasState, PR; ηp = nothing, ηs = nothing) =
+    GasState(st.gas, expand(st.gas, st.T, PR; ηp = ηp, ηs = ηs), st.P / PR)
 
 """
     expand_to(st::GasState, P2; ηp = 1.0) -> GasState
+    expand_to(st::GasState, P2; ηs)       -> GasState
 
-Polytropic expansion of a state to outlet pressure `P2 ≤ st.P`
-(`ArgumentError` otherwise) — the nozzle convenience, equivalent to
-`expand(st, st.P / P2; ηp)`. The returned state's pressure is exactly the
-`P2` requested.
+Expansion of a state to outlet pressure `P2 ≤ st.P` (`ArgumentError`
+otherwise) — the nozzle convenience, equivalent to `expand(st, st.P / P2;
+…)`. The loss model follows the efficiency keyword (polytropic `ηp` default,
+or isentropic `ηs`, at most one). The returned state's pressure is exactly
+the `P2` requested.
 """
-function expand_to(st::GasState, P2; ηp = 1.0)
+function expand_to(st::GasState, P2; ηp = nothing, ηs = nothing)
     P2 ≤ st.P || throw(
         ArgumentError(
             "expand_to: target pressure P2 = $P2 exceeds the state pressure " *
             "$(st.P); use compress to raise the pressure",
         ),
     )
-    GasState(st.gas, expand(st.gas, st.T, st.P / P2; ηp = ηp), P2)
+    GasState(st.gas, expand(st.gas, st.T, st.P / P2; ηp = ηp, ηs = ηs), P2)
 end
 
 """

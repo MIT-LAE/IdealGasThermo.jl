@@ -136,6 +136,16 @@ Ratio of specific heats cp/(cp - R) at temperature `T` [K].
     c / (c - gas.R)
 end
 
+"""
+    speed_of_sound(gas::FrozenGas, T)
+
+Speed of sound `a = √(γ·R·T)` [m/s] at temperature `T` [K], with
+`γ = `[`gamma`](@ref)`(gas, T)` and `R = `[`R`](@ref)`(gas)`. A pure
+function of `(gas, T)`: composition and temperature are all it needs — no
+pressure, no state. Zero-allocation, generic over `Real`.
+"""
+@inline speed_of_sound(gas::FrozenGas, T) = sqrt(gamma(gas, T) * gas.R * T)
+
 # Inversion contract (T_of_h, T_isentropic): Newton iteration, relative
 # tolerance 1e-12 on the temperature step (well inside the documented
 # ≤ 1e-10), at most 30 iterations, deterministic fixed algorithm, errors if

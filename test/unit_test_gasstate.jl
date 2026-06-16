@@ -122,6 +122,82 @@ using ForwardDiff
         @test rt.P ≈ st2.P rtol = 1e-12
     end
 
+    @testset "isentropic-efficiency ηs form of compress/expand" begin
+        air = FrozenGas(DryAir)
+        h = IdealGasThermo.h
+        # ηs = 1 is the loss-free isentrope, identical to the default and ηp = 1
+        @test compress(air, 288.15, 12.0; ηs = 1.0) ≈ compress(air, 288.15, 12.0) rtol = 1e-12
+        @test expand(air, 1600.0, 4.0; ηs = 1.0) ≈ expand(air, 1600.0, 4.0) rtol = 1e-12
+
+        # compressor: a real machine (ηs < 1) overshoots the ideal outlet T;
+        # the enthalpy rise is the ideal rise divided by ηs
+        T1, PR, ηs = 288.15, 12.0, 0.85
+        T2s = compress(air, T1, PR)                    # loss-free outlet
+        T2 = compress(air, T1, PR; ηs = ηs)
+        @test T2 > T2s
+        @test h(air, T2) - h(air, T1) ≈ (h(air, T2s) - h(air, T1)) / ηs rtol = 1e-10
+
+        # turbine: a real machine (ηs < 1) leaves the gas hotter than ideal;
+        # the enthalpy drop is ηs times the ideal drop
+        T1t, PRt, ηst = 1600.0, 4.0, 0.9
+        T2st = expand(air, T1t, PRt)                   # loss-free outlet
+        T2t = expand(air, T1t, PRt; ηs = ηst)
+        @test T2t > T2st
+        @test h(air, T1t) - h(air, T2t) ≈ ηst * (h(air, T1t) - h(air, T2st)) rtol = 1e-10
+
+        # the two conventions are consistent: take a polytropic outlet, measure
+        # its isentropic efficiency, feed it back as ηs → the same outlet T
+        for (T0, P0, ηp) in ((288.15, 12.0, 0.9), (500.0, 30.0, 0.85))
+            T2p = compress(air, T0, P0; ηp = ηp)
+            ηs_eff = (h(air, compress(air, T0, P0)) - h(air, T0)) / (h(air, T2p) - h(air, T0))
+            @test compress(air, T0, P0; ηs = ηs_eff) ≈ T2p rtol = 1e-10
+        end
+        for (T0, P0, ηp) in ((1600.0, 4.0, 0.92), (1323.8, 5.3, 0.88))
+            T2p = expand(air, T0, P0; ηp = ηp)
+            ηs_eff = (h(air, T0) - h(air, T2p)) / (h(air, T0) - h(air, expand(air, T0, P0)))
+            @test expand(air, T0, P0; ηs = ηs_eff) ≈ T2p rtol = 1e-10
+        end
+
+        # at most one efficiency convention — both is an error, scalar and state
+        st = GasState(air, 288.15, 101325.0)
+        sthot = GasState(air, 1600.0, 12.159e5)
+        @test_throws ArgumentError compress(air, 288.15, 12.0; ηp = 0.9, ηs = 0.9)
+        @test_throws ArgumentError expand(air, 1600.0, 4.0; ηp = 0.9, ηs = 0.9)
+        @test_throws ArgumentError compress(st, 12.0; ηp = 0.9, ηs = 0.9)
+        @test_throws ArgumentError expand(sthot, 4.0; ηp = 0.9, ηs = 0.9)
+        @test_throws ArgumentError expand_to(sthot, 101325.0; ηp = 0.9, ηs = 0.9)
+
+        # state layer: ηs degrades T but lands on the SAME pressure as ηp
+        c_ηp = compress(st, 12.0; ηp = 0.85)
+        c_ηs = compress(st, 12.0; ηs = 0.85)
+        @test c_ηp.P ≈ c_ηs.P rtol = 1e-14           # outlet pressure is P·PR either way
+        @test c_ηs.T ≈ compress(air, st.T, 12.0; ηs = 0.85) rtol = 1e-14
+        e_ηs = expand(sthot, 4.0; ηs = 0.9)
+        @test e_ηs.P ≈ sthot.P / 4.0 rtol = 1e-14
+        @test e_ηs.T ≈ expand(air, sthot.T, 4.0; ηs = 0.9) rtol = 1e-14
+        # expand_to with ηs hits the named pressure exactly
+        en = expand_to(sthot, 101325.0; ηs = 0.9)
+        @test en.P == 101325.0
+        @test en.T ≈ expand(air, sthot.T, sthot.P / 101325.0; ηs = 0.9) rtol = 1e-14
+
+        # works through the accelerated flavor
+        fg = FastFrozenGas(air)
+        @test compress(fg, 288.15, 12.0; ηs = 0.85) ≈ compress(air, 288.15, 12.0; ηs = 0.85) rtol = 1e-10
+
+        # zero allocations on the ηs path
+        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
+        cmp_ηs(x, PR, e) = compress(x, PR; ηs = e)
+        expd_ηs(x, PR, e) = expand(x, PR; ηs = e)
+        @test measured(cmp_ηs, st, 12.0, 0.85) == 0
+        @test measured(expd_ηs, sthot, 4.0, 0.9) == 0
+
+        # ForwardDiff flows through the ηs path (built on the IFT-ruled engines)
+        T2 = compress(air, 288.15, 12.0; ηs = 0.85)
+        @test ForwardDiff.derivative(pr -> compress(air, 288.15, pr; ηs = 0.85), 12.0) ≈
+              (compress(air, 288.15, 12.0 + 1e-5; ηs = 0.85) -
+               compress(air, 288.15, 12.0 - 1e-5; ηs = 0.85)) / 2e-5 rtol = 1e-6
+    end
+
     @testset "add_heat: constant-P enthalpy change, signed q" begin
         air = FrozenGas(DryAir)
         st = GasState(air, 626.0, 12.159e5)

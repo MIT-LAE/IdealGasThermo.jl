@@ -34,6 +34,8 @@ export FastFrozenGas
 include("gasstate.jl")
 export GasState, entropy, density
 export compress, expand, expand_to, add_heat, add_work, extract_work
+include("flow.jl")
+export speed_of_sound, mach, stagnation_state, static_state
 include("combustor.jl")
 export Combustor, products
 include("mixer.jl")
