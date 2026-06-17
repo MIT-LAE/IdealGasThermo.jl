@@ -39,7 +39,10 @@ export FrozenGas, props, temperature
 # `Base.cp`. (ADR-0007; see CHANGELOG migration notes.)
 const cₚ = cp
 const c_p = cp
-export cₚ, c_p, h, s0, gamma, R, T_of_h, T_isentropic, pressure_ratio
+# `γ` is an exported Unicode alias of `gamma` (ratio of specific heats); unlike
+# `cp`, the ASCII `gamma` does not collide with Base, so both names are exported.
+const γ = gamma
+export cₚ, c_p, h, s0, gamma, γ, R, T_of_h, T_isentropic, pressure_ratio
 include("fastfrozengas.jl")
 export FastFrozenGas
 include("gasstate.jl")
