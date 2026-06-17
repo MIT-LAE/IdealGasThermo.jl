@@ -12,6 +12,7 @@ using Printf
 export Gas, set_h!, set_hP!, set_TP!, set_Δh!
 
 include("constants.jl")
+include("deprecation.jl")
 include("species.jl")
 export AbstractSpecies, species, composite_species, generate_composite_species
 
@@ -42,10 +43,13 @@ include("mixer.jl")
 export Mixer, mixed
 include("atmosphere.jl")
 
-const DryAir = let g = Gas()
-    g.X = Xair
-    generate_composite_species(g.X, "Dry Air")
-end
+# Dry-air pseudo-species, built directly from the `Xair` mole-fraction table.
+# Deliberately does NOT go through `Gas()` (deprecated, ADR-0002/0007): the pure
+# core must stand entirely free of the mutable legacy layer so that layer can be
+# deleted in v2.0.0 without touching any live code path. `Xidict2Array` places the
+# mole fractions directly (no lossy X→Y→X round-trip), giving a composite identical
+# to the old `let g=Gas(); g.X=Xair; … end` form to machine precision (MW bit-equal).
+const DryAir = generate_composite_species(Xidict2Array(Xair), "Dry Air")
 export DryAir
 include("humidity.jl")
 export humid_air

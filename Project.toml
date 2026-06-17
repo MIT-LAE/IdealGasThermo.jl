@@ -1,7 +1,7 @@
 name = "IdealGasThermo"
 uuid = "d4fb33c0-2494-4384-b7a5-e5d0487b6649"
 authors = ["Prashanth Prakash <prash@mit.edu> and contributors"]
-version = "1.0.0"
+version = "2.0.0-beta1"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"

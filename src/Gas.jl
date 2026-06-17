@@ -2,8 +2,14 @@ abstract type AbstractGas end
 """
     Gas{N}
 
-A type that represents an ideal gas that is calorically perfect 
+A type that represents an ideal gas that is calorically perfect
 i.e. ``c_p(T)``, ``h(T)``, ``\\phi(T)`` and ``s(T,P)``.
+
+!!! warning "Deprecated"
+    `Gas{N}` and its mutating verbs (`set_TP!`, `set_h!`, `set_hP!`, `set_Δh!`) are
+    deprecated (ADR-0002, ADR-0007) and will be removed in IdealGasThermo v2.0.0.
+    Use the immutable pure core instead: `FrozenGas` for composition+properties and
+    `GasState` for a (gas, T, P) point with process verbs (`compress`, `expand`, …).
 """
 mutable struct Gas{N} <: AbstractGas
     P::Float64 # [Pa]
@@ -60,6 +66,7 @@ with composition:
 ```
 """
 function Gas()
+    _legacy_warn(:Gas, "FrozenGas / GasState")
     i = findfirst(x -> x == "Air", spdict.name)
     Air = spdict[i]
     Y = zeros(Nspecies)
