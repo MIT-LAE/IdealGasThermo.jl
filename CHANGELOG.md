@@ -10,6 +10,18 @@ Pre-release of `2.0.0`. The immutable pure core is now the headline API and the
 legacy mutable layer is **loudly deprecated** ahead of its removal in `2.0.0` final.
 Nothing is removed yet — this release is safe to adopt and migrate against.
 
+### Added
+
+- **The pure-core property accessors are now exported**, so `using IdealGasThermo`
+  makes them callable without qualification: `cₚ` / `c_p` (specific heat), `h`,
+  `s0`, `gamma`, `R`, `T_of_h`, `T_isentropic`, `pressure_ratio`. Previously these
+  were internal (`IdealGasThermo.cp(gas, T)`).
+  - Specific heat is exported as **`cₚ` and `c_p`** (interchangeable aliases of one
+    function). The bare name `cp` is *not* exported because it would shadow
+    `Base.cp` (file copy); it remains reachable as `IdealGasThermo.cp`. The
+    `props(gas, T)` NamedTuple still uses the field name `cp` (a field accessor is
+    reached only as `.cp`, so it cannot collide with `Base.cp`).
+
 ### Deprecated
 
 - **`Gas{N}`, `Gas1D`, and the functions they back** (the Dict-combustion in
