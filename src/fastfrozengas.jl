@@ -157,16 +157,11 @@ function T_of_h(fg::FastFrozenGas{:seeded}, hspec::AbstractFloat)
     if !(fg.hmin ≤ hspec ≤ fg.hmax)
         return T_of_h(fg.gas, hspec) # out of table range: exact cold-start solve
     end
-    gas = fg.gas
-    T = _hermite_h(fg, hspec)
-    for _ = 1:NEWTON_MAXITER
-        dT = (hspec - h(gas, T)) / cp(gas, T)
-        T += dT
-        if abs(dT) ≤ NEWTON_RTOL * abs(T)
-            return T
-        end
-    end
-    error("temperature(fg, h = $hspec) did not converge (last T = $T)")
+    # In range: the only thing the table buys is a near-exact starting point, so
+    # seed the FrozenGas Newton solve with the Hermite guess (≈1–2 iterations)
+    # rather than duplicating the loop. Same gas, same polynomials, same
+    # convergence criterion — only the initial guess differs from a cold solve.
+    return T_of_h(fg.gas, hspec; Tguess = _hermite_h(fg, hspec))
 end
 
 function T_isentropic(fg::FastFrozenGas{:seeded}, T1::AbstractFloat, PR::AbstractFloat; ηp = 1.0)
@@ -175,15 +170,10 @@ function T_isentropic(fg::FastFrozenGas{:seeded}, T1::AbstractFloat, PR::Abstrac
     if !(fg.s0min ≤ target ≤ fg.s0max)
         return T_isentropic(gas, T1, PR; ηp = ηp) # out of table range: exact cold start
     end
-    T = _hermite_s0(fg, target)
-    for _ = 1:NEWTON_MAXITER
-        dT = (target - s0(gas, T)) * T / cp(gas, T) # ds0/dT = cp/T
-        T += dT
-        if abs(dT) ≤ NEWTON_RTOL * abs(T)
-            return T
-        end
-    end
-    error("T_isentropic(fg, T1 = $T1, PR = $PR) did not converge (last T = $T)")
+    # In range: seed the FrozenGas Newton solve with the Hermite guess rather than
+    # duplicating the loop (see T_of_h above). The s0 `target` is recomputed inside
+    # for the residual — one extra s0 evaluation, the price of not repeating the loop.
+    return T_isentropic(gas, T1, PR; ηp = ηp, Tguess = _hermite_s0(fg, target))
 end
 
 # ---- :fast mode — pure Hermite lookup, loud out of range -------------------

@@ -194,9 +194,11 @@ if not converged). `ηp` is the polytropic efficiency: pass `ηp` for
 compression (PR > 1) and `1/ηp` for expansion (PR < 1) conventions, or leave
 at 1 for the isentropic relation. Pure and zero-allocation.
 """
-function T_isentropic(gas::FrozenGas, T1, PR; ηp = 1.0)
+function T_isentropic(gas::FrozenGas, T1, PR; ηp = 1.0, Tguess = nothing)
     target = s0(gas, T1) + gas.R * log(PR) / ηp
-    T = T1 * PR^(gas.R / cp(gas, T1) / ηp) # constant-γ initial guess
+    # constant-γ initial guess, unless a seed is supplied (e.g. a table lookup
+    # from FastFrozenGas{:seeded}); the `=== nothing` check folds away per call.
+    T = Tguess === nothing ? T1 * PR^(gas.R / cp(gas, T1) / ηp) : Tguess
     for _ = 1:NEWTON_MAXITER
         dT = (target - s0(gas, T)) * T / cp(gas, T) # ds0/dT = cp/T
         T += dT
