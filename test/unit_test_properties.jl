@@ -9,7 +9,7 @@ using ForwardDiff
 @testset "physics properties (randomized, seeded)" begin
 
     rng = Xoshiro(20260612)
-    uni(a, b) = a + (b - a) * rand(rng)
+    uni(a, b) = a + (b - a) * rand(rng) #uniform random between a and b
 
     air = FrozenGas(DryAir)
     sysCH4 = Combustor("CH4", DryAir)
@@ -124,6 +124,31 @@ using ForwardDiff
             g = mixed(mAA, m)
             @test IdealGasThermo.cp(g, 600.0) ≈ IdealGasThermo.cp(air, 600.0) rtol = 1e-12
             @test IdealGasThermo.s0(g, 600.0) ≈ IdealGasThermo.s0(air, 600.0) rtol = 1e-12
+        end
+    end
+
+    @testset "entropy of mixing: blend s0 vs a hand-written −R·Σ X·ln X" begin
+        # A sign flip in the entropy-of-mixing fold (species.jl: alow[end] -=
+        # Δs_mix) is invisible to every pure-species check (X·ln X = 0 at X = 1)
+        # and to the legacy-agreement tests (they share the same fold). Pin it
+        # directly: the molar s0 of a blend must equal Σ Xᵢ·s0ᵢ(T) − R·Σ Xᵢ·ln Xᵢ,
+        # with the mixing term written out HERE, not taken from
+        # generate_composite_species. A flipped sign would shift this by
+        # 2R·|Σ X ln X| (~11.5 J/mol/K for a 50/50 blend). (test audit 2026-06-17)
+        R = IdealGasThermo.Runiv
+        for X in ([("N2", 0.5), ("O2", 0.5)],
+                  [("N2", 0.78), ("O2", 0.21), ("CO2", 0.01)])
+            xs = last.(X)
+            sps = [species_in_spdict(first(p)) for p in X]
+            comps = [FrozenGas(sp) for sp in sps]
+            blend = FrozenGas(IdealGasThermo.Xidict2Array(Dict(X)))
+            Δs_mix = sum(x * log(x) for x in xs)
+            for T in (300.0, 1000.0, 2200.0)
+                s0_blend = IdealGasThermo.s0(blend, T) * blend.MW / 1000   # molar
+                expected = sum(x * IdealGasThermo.s0(c, T) * sp.MW / 1000
+                               for (x, c, sp) in zip(xs, comps, sps)) - R * Δs_mix
+                @test s0_blend ≈ expected rtol = 1e-10
+            end
         end
     end
 

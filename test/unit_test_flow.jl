@@ -9,13 +9,13 @@ using ForwardDiff
     air = FrozenGas(DryAir)
 
     @testset "speed_of_sound is √(γRT), pure in (gas, T)" begin
-        for T in (216.65, 288.15, 600.0, 999.9, 1600.0)
-            a = speed_of_sound(air, T)
-            @test a ≈ sqrt(IdealGasThermo.gamma(air, T) * IdealGasThermo.R(air) * T) rtol = 1e-14
-            @test a > 0
-        end
-        # standard sea-level air sound speed (~340 m/s)
-        @test speed_of_sound(air, 288.15) ≈ 340.3 atol = 0.5
+        # NB: not `a ≈ sqrt(gamma*R*T)` — that re-derives the value with
+        # speed_of_sound's own expression (a tautology). γ, R, cp are anchored
+        # against CEA in unit_test_cea_reference.jl; here we pin the one thing
+        # that catches a units/scale error in speed_of_sound itself: the
+        # absolute sea-level dry-air value (~340.3 m/s).
+        @test speed_of_sound(air, 288.15) ≈ 340.3 atol = 0.1
+        @test speed_of_sound(air, 1600.0) > speed_of_sound(air, 288.15)  # rises with T
         # FastFrozenGas forwards the property unchanged
         fg = FastFrozenGas(air)
         @test speed_of_sound(fg, 700.0) === speed_of_sound(air, 700.0)

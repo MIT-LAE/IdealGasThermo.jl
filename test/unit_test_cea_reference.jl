@@ -46,12 +46,21 @@
     # ABSOLUTE: atol = one unit in the last printed place (1e-3). The half-ULP
     # (5e-4) is CEA's rounding; the small remainder is the universal-gas-constant
     # difference (Runiv = 8.3145 here vs CEA's 8.31451), heaviest on s0. Measured
-    # max abs dev over [250, 3000] K: cp 5.6e-4, s0 8.7e-4, sensible-h 6.1e-4 —
-    # all inside 1e-3. (rtol would hide this structure; atol names it.)
+    # max abs dev: cp 5.6e-4, s0 8.7e-4, sensible-h 6.1e-4 — all inside 1e-3.
+    # (rtol would hide this structure; atol names it.)
+    #
+    # Curated temperatures, NOT the whole table: NASA-9 cp is a degree-≤4
+    # polynomial per interval, so dense sampling adds count, not bug-catching
+    # power (test audit, 2026-06-17). These bracket the 1000 K coefficient seam
+    # (950 uses alow, 1000/1050 use ahigh) and hit both interval interiors and
+    # the endpoints of the tested range — the points where a coefficient or
+    # interval-selection bug actually shows.
+    targets = (250.0, 500.0, 950.0, 1000.0, 1050.0, 1500.0, 3000.0)
     for spp in ("CO2", "N2", "O2")
         sp = species_in_spdict(spp)
         gas = FrozenGas(sp)
         h298 = IdealGasThermo.h(gas, 298.15)
+        rows = Dict(T => (Cp, Hs, S) for (T, Cp, Hs, S) in cea[spp])
 
         # formation-inclusive datum: h(298.15) reproduces the stored formation
         # enthalpy, which equals CEA's H(298.15) column (ΔHf): −393.510 kJ/mol
@@ -59,14 +68,13 @@
         # the NASA-9 header-vs-coefficient consistency, not a CEA difference.
         @test h298 * sp.MW / 1e6 ≈ sp.Hf / 1000 atol = 1e-3   # kJ/mol
 
-        npts = 0
-        for (T, Cp, Hs, S) in cea[spp]
-            (250.0 <= T <= 3000.0) || continue
+        for T in targets
+            haskey(rows, T) ||
+                error("CEA table for $spp is missing the curated T = $T K")
+            Cp, Hs, S = rows[T]
             @test IdealGasThermo.cp(gas, T) * sp.MW / 1000 ≈ Cp atol = 1e-3         # J/mol/K
             @test IdealGasThermo.s0(gas, T) * sp.MW / 1000 ≈ S atol = 1e-3          # J/mol/K
             @test (IdealGasThermo.h(gas, T) - h298) * sp.MW / 1e6 ≈ Hs atol = 1e-3  # kJ/mol, sensible
-            npts += 1
         end
-        @test npts >= 40     # the CEA table is densely sampled across [250, 3000] K
     end
 end
