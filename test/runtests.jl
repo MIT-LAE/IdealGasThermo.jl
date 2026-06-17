@@ -23,4 +23,5 @@ using Aqua
     include("unit_test_gasstate.jl")
     include("unit_test_flow.jl")
     include("unit_test_properties.jl")
+    include("unit_test_cea_reference.jl")
 end
