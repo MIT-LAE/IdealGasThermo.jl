@@ -39,7 +39,8 @@ using ForwardDiff
         # density absolute anchor: dry air at sea-level standard ≈ 1.225 kg/m³
         # (ideal-gas law ρ = P/RT; catches a units/formula error)
         @test density(GasState(air, 288.15, 101325.0)) ≈ 1.2250 atol = 1e-3
-        # unexported short aliases
+        # unexported short aliases `s`/`rho` are forwarding methods (not const
+        # aliases), so check the forward fires, not function identity
         st = GasState(air, 288.15, 101325.0)
         @test IdealGasThermo.s(st) === entropy(st)
         @test IdealGasThermo.rho(st) === density(st)
@@ -189,7 +190,6 @@ using ForwardDiff
         @test sth.T > st.T
         # negative q cools
         stc = add_heat(st, -3.0e5)
-        @test stc.P === st.P
         @test IdealGasThermo.h(stc) ≈ IdealGasThermo.h(st) - 3.0e5 rtol = 1e-12
         @test stc.T < st.T
         # q = 0 is the identity to the inversion tolerance

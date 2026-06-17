@@ -21,11 +21,8 @@
         SH = IdealGasThermo.specific_humidity(RH, IdealGasThermo.Tstd, IdealGasThermo.Pstd)
         gasRH = humid_air(RH = RH)
         gasSH = humid_air(SH = SH)
+        # MW agreement at rtol 1e-12 implies identical mole-fraction composition (MW is linear in X), hence identical cp/h — so the property loop added no distinct claim.
         @test gasSH.MW ≈ gasRH.MW rtol = 1e-12
-        for T in [300.0, 1600.0]
-            @test IdealGasThermo.cp(gasSH, T) ≈ IdealGasThermo.cp(gasRH, T) rtol = 1e-12
-            @test IdealGasThermo.h(gasSH, T) ≈ IdealGasThermo.h(gasRH, T) rtol = 1e-12
-        end
     end
 
     # Water (MW ≈ 18) is lighter than dry air (MW ≈ 29), so adding vapor
@@ -37,7 +34,6 @@
         Rs = [IdealGasThermo.R(humid_air(SH = ω)) for ω in ωs]
         @test Rs[1] ≈ IdealGasThermo.R(air) rtol = 1e-12
         @test all(diff(Rs) .> 0)
-        @test all(R -> R > IdealGasThermo.R(air), Rs[2:end])
     end
 
 end

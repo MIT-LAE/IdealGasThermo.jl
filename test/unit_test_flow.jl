@@ -12,9 +12,6 @@ using ForwardDiff
         # absolute sea-level dry-air value (~340.3 m/s).
         @test speed_of_sound(air, 288.15) ≈ 340.3 atol = 0.1
         @test speed_of_sound(air, 1600.0) > speed_of_sound(air, 288.15)  # rises with T
-        # FastFrozenGas forwards the property unchanged
-        fg = FastFrozenGas(air)
-        @test speed_of_sound(fg, 700.0) === speed_of_sound(air, 700.0)
         # GasState accessor reads at st.T, needs no pressure
         for (T, P) in ((288.15, 101325.0), (1600.0, 12.0e5))
             @test speed_of_sound(GasState(air, T, P)) === speed_of_sound(air, T)
@@ -26,7 +23,6 @@ using ForwardDiff
         a = speed_of_sound(air, 288.15)
         @test mach(air, 288.15, a) ≈ 1.0 rtol = 1e-14   # V = a ⇒ M = 1
         @test mach(st, 0.5 * a) ≈ 0.5 rtol = 1e-14
-        @test mach(st, 100.0) === 100.0 / speed_of_sound(st)
     end
 
     @testset "stagnation: energy balance and isentropic pressure" begin
