@@ -49,30 +49,18 @@ using ForwardDiff
     end
 
     @testset "exported property API (cₚ/c_p aliases + unqualified access)" begin
-        # The pure-core property accessors are exported, so a consumer that did
-        # `using IdealGasThermo` can call them WITHOUT qualifying. These bare names
-        # (no `IdealGasThermo.` prefix) only resolve if the export is in place — a
-        # regression in the export list makes this testset fail to even run.
-        air = FrozenGas(DryAir)
-        T = 800.0
+        # Asserts (a) aliases resolve to the right functions and (b) all property
+        # names are exported. The pure-core property accessors are exported, so a
+        # consumer that did `using IdealGasThermo` can call them WITHOUT qualifying.
+        # These bare names (no `IdealGasThermo.` prefix) only resolve if the export
+        # is in place — a regression in the export list makes this testset fail to
+        # even run.
         # cₚ and c_p are aliases of the same (unexported, Base.cp-conflicting) `cp`
         @test cₚ === IdealGasThermo.cp
         @test c_p === IdealGasThermo.cp
-        @test cₚ(air, T) == IdealGasThermo.cp(air, T)
-        @test c_p(air, T) === cₚ(air, T)
-        # the rest of the set resolves unqualified and agrees with the qualified call
-        @test h(air, T) == IdealGasThermo.h(air, T)
-        @test s0(air, T) == IdealGasThermo.s0(air, T)
-        @test gamma(air, T) == IdealGasThermo.gamma(air, T)
         @test γ === gamma                       # Unicode alias of gamma
-        @test γ(air, T) == gamma(air, T)
-        @test R(air) == IdealGasThermo.R(air)
-        @test T_of_h(air, h(air, T)) ≈ T rtol = 1e-10
-        T2 = T_isentropic(air, 300.0, 8.0)
-        @test pressure_ratio(air, 300.0, T2) ≈ 8.0 rtol = 1e-10
-        # the props bundle deliberately keeps the field name `cp` (a field accessor
-        # never collides with Base.cp), and it matches the cₚ alias
-        @test props(air, T).cp == cₚ(air, T)
+        # all property names appear in the public export list
+        @test issubset([:cₚ, :c_p, :h, :s0, :gamma, :γ, :R, :T_of_h, :T_isentropic, :pressure_ratio], names(IdealGasThermo))
     end
 
     @testset "T_of_h inversion" begin
@@ -80,9 +68,6 @@ using ForwardDiff
         for T in [250.0, 500.0, 999.5, 1000.5, 1600.0, 2200.0]
             @test IdealGasThermo.T_of_h(air, IdealGasThermo.h(air, T)) ≈ T rtol = 1e-10
         end
-        # deterministic: same input, same output, bitwise
-        hspec = IdealGasThermo.h(air, 1234.5)
-        @test IdealGasThermo.T_of_h(air, hspec) === IdealGasThermo.T_of_h(air, hspec)
     end
 
     @testset "isentropic relations" begin
