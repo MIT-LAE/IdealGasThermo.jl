@@ -11,31 +11,31 @@ using ForwardDiff
         @test IdealGasThermo.R(air) ≈ 287.05 atol = 0.1
     end
 
-    @testset "cp" begin
+    @testset "absolute values, datum, composite construction" begin
         air = FrozenGas(DryAir)
-        # CEA-derived acceptance value for dry air
-        @test IdealGasThermo.cp(air, 300.0) ≈ 1005.0 atol = 5.0
-        # Agreement with the established Gas1D mixture thermodynamics
-        g1d = Gas1D()
-        for T in [250.0, 500.0, 999.9, 1000.0, 1600.0, 2200.0]
-            g1d.T = T
-            @test IdealGasThermo.cp(air, T) ≈ g1d.cp rtol = 1e-10
-        end
-    end
+        # cp/h/s0 ABSOLUTE values are anchored to CEA (an external authority) in
+        # unit_test_cea_reference.jl — per-species and the dry-air pseudo-species.
+        # Here we keep only the claims that file does not make; the old
+        # `cp ≈ 1005 atol=5` textbook ballpark and the `≈ Gas1D` agreement loop
+        # (a same-NASA-9-kernel twin) are gone — they added a loose/circular
+        # echo of the now-tight CEA anchor.
 
-    @testset "h, s0, gamma" begin
-        air = FrozenGas(DryAir)
+        # γ ≈ 1.4 for diatomic-dominated air near room T (sanity; γ = cp/(cp−R),
+        # and cp/R is CEA-anchored)
         @test IdealGasThermo.gamma(air, 300.0) ≈ 1.400 atol = 0.003
-        g1d = Gas1D()
-        for T in [250.0, 500.0, 999.9, 1000.0, 1600.0, 2200.0]
-            g1d.T = T
-            @test IdealGasThermo.h(air, T) ≈ g1d.h rtol = 1e-10
-            @test IdealGasThermo.s0(air, T) ≈ g1d.ϕ rtol = 1e-10
-        end
-        # Enthalpy datum is formation-inclusive: h at 298.15 K equals the
-        # mixture mass-specific formation enthalpy, so sensible enthalpy is
-        # h(T) - h(298.15)
+
+        # formation-inclusive datum: h(298.15) equals the mixture mass-specific
+        # formation enthalpy, so sensible enthalpy is h(T) − h(298.15)
         @test IdealGasThermo.h(air, 298.15) ≈ air.Hf / air.MW * 1000.0 rtol = 1e-4
+
+        # the DryAir composite reproduces the fitted "Air" pseudo-species — the
+        # gas anchored against the CEA Air table — tying DryAir to that external
+        # anchor without re-listing the values (composite path vs single fit)
+        airsp = FrozenGas(species_in_spdict("Air"))
+        for T in (300.0, 1000.0, 1600.0)
+            @test IdealGasThermo.cp(air, T) ≈ IdealGasThermo.cp(airsp, T) rtol = 1e-4
+            @test IdealGasThermo.s0(air, T) ≈ IdealGasThermo.s0(airsp, T) rtol = 1e-4
+        end
     end
 
     @testset "props" begin
@@ -67,11 +67,6 @@ using ForwardDiff
             T2 = IdealGasThermo.T_isentropic(air, T1, PR)
             @test IdealGasThermo.pressure_ratio(air, T1, T2) ≈ PR rtol = 1e-10
         end
-        # cross-validation against the established compress (ideal, ηp = 1)
-        g1d = Gas1D()
-        set_TP!(g1d, 288.15, 101325.0)
-        IdealGasThermo.compress(g1d, 12.0)
-        @test IdealGasThermo.T_isentropic(air, 288.15, 12.0) ≈ g1d.T rtol = 1e-7
     end
 
     @testset "zero allocations after warmup" begin

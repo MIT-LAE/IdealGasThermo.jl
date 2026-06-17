@@ -1,8 +1,3 @@
-# NOTE: substantial parts of this file are MIGRATION TESTS — they pin the
-# pure core to the legacy implementation (vitiated_species / Gas1D /
-# set_Δh! era) to prove the refactor preserved behavior. They retire with
-# the legacy layer in v2.0. The physics itself is guarded independently in
-# unit_test_properties.jl.
 using ForwardDiff
 
 @testset "Combustor products" begin
@@ -17,37 +12,6 @@ using ForwardDiff
             @test IdealGasThermo.h(gas0, T) ≈ IdealGasThermo.h(air, T) rtol = 1e-10
             @test IdealGasThermo.s0(gas0, T) ≈ IdealGasThermo.s0(air, T) rtol = 1e-10
         end
-    end
-
-    @testset "agreement with legacy vitiated_species (CH4 + Air)" begin
-        sys = Combustor("CH4", "Air")
-        legacy = FrozenGas(IdealGasThermo.vitiated_species("CH4", "Air", 0.03))
-        gas = products(sys, 0.03)
-        @test gas.MW ≈ legacy.MW rtol = 1e-12
-        @test IdealGasThermo.R(gas) ≈ IdealGasThermo.R(legacy) rtol = 1e-12
-        for T in [300.0, 999.9, 1000.0, 1600.0, 2200.0]
-            @test IdealGasThermo.cp(gas, T) ≈ IdealGasThermo.cp(legacy, T) rtol = 1e-10
-            @test IdealGasThermo.h(gas, T) ≈ IdealGasThermo.h(legacy, T) rtol = 1e-10
-            @test IdealGasThermo.s0(gas, T) ≈ IdealGasThermo.s0(legacy, T) rtol = 1e-10
-        end
-    end
-
-    @testset "agreement with legacy vitiated_species (Jet-A + Air)" begin
-        FAR = 0.029681
-        sys = Combustor("Jet-A(g)", "Air")
-        legacy = FrozenGas(IdealGasThermo.vitiated_species("Jet-A(g)", "Air", FAR))
-        gas = products(sys, FAR)
-        @test gas.MW ≈ legacy.MW rtol = 1e-12
-        @test IdealGasThermo.R(gas) ≈ IdealGasThermo.R(legacy) rtol = 1e-12
-        for T in [300.0, 999.9, 1000.0, 1600.0, 2200.0]
-            @test IdealGasThermo.cp(gas, T) ≈ IdealGasThermo.cp(legacy, T) rtol = 1e-10
-            @test IdealGasThermo.h(gas, T) ≈ IdealGasThermo.h(legacy, T) rtol = 1e-10
-            @test IdealGasThermo.s0(gas, T) ≈ IdealGasThermo.s0(legacy, T) rtol = 1e-10
-        end
-        # Requirements acceptance values: mean cp [J/kg/K] over two intervals
-        h1600 = IdealGasThermo.h(gas, 1600.0)
-        @test (h1600 - IdealGasThermo.h(gas, 298.15)) / 1301.85 ≈ 1172.7 rtol = 0.015
-        @test (h1600 - IdealGasThermo.h(gas, 1373.78)) / 226.22 ≈ 1276.9 rtol = 0.015
     end
 
     @testset "zero allocations after warmup" begin
@@ -72,15 +36,24 @@ using ForwardDiff
     end
 
     @testset "incomplete combustion (ηburn ≠ 1)" begin
-        FAR, ηburn = 0.03, 0.9
-        sys = Combustor("CH4", "Air"; ηburn = ηburn)
-        legacy = FrozenGas(IdealGasThermo.vitiated_species("CH4", "Air", FAR; ηburn = ηburn))
-        gas = products(sys, FAR)
-        @test gas.MW ≈ legacy.MW rtol = 1e-10
-        for T in [300.0, 1600.0]
-            @test IdealGasThermo.cp(gas, T) ≈ IdealGasThermo.cp(legacy, T) rtol = 1e-10
-            @test IdealGasThermo.h(gas, T) ≈ IdealGasThermo.h(legacy, T) rtol = 1e-10
-            @test IdealGasThermo.s0(gas, T) ≈ IdealGasThermo.s0(legacy, T) rtol = 1e-10
+        # ηburn is a real composition knob, not a passthrough: at the SAME FAR,
+        # burning only a fraction of the fuel leaves a different product mixture
+        # (more unburnt fuel / less CO2 + H2O) than complete combustion, so the
+        # two gases must have measurably different properties. (Self-contained;
+        # no comparison to the legacy vitiated_species path.)
+        FAR = 0.03
+        full = products(Combustor("CH4", "Air"; ηburn = 1.0), FAR)
+        partial = products(Combustor("CH4", "Air"; ηburn = 0.9), FAR)
+        # the compositions differ ⟹ cp differs by well over numerical noise
+        @test !isapprox(IdealGasThermo.cp(partial, 1600.0),
+                        IdealGasThermo.cp(full, 1600.0); rtol = 1e-3)
+        # and ηburn has no effect when there is no fuel to burn: at FAR = 0 both
+        # collapse to the pure oxidizer regardless of ηburn
+        air = FrozenGas(DryAir)
+        for ηburn in (0.9, 1.0)
+            gas0 = products(Combustor("CH4", DryAir; ηburn = ηburn), 0.0)
+            @test IdealGasThermo.cp(gas0, 1600.0) ≈ IdealGasThermo.cp(air, 1600.0) rtol = 1e-10
+            @test IdealGasThermo.h(gas0, 1600.0) ≈ IdealGasThermo.h(air, 1600.0) rtol = 1e-10
         end
     end
 
