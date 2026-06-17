@@ -66,53 +66,6 @@ end
 fuelbreakdown(fuel::species) = fuelbreakdown(fuel.formula)
 
 """
-    reaction_change_fraction(fuel::String)
-
-Returns the mass fraction change due to complete combustion
-
-Assume fuel of type  CᵢHⱼOₖNₗ , then
-```
-  CᵢHⱼOₖNₗ + n(O2) * O2 ---> n(CO2)*CO2 + n(H2O)*H2O + n(N2)*N2
-⟹CᵢHⱼOₖNₗ              ---> n(CO2)*CO2 + n(H2O)*H2O + n(N2)*N2 - n(O2)*O2 
-```
-# Examples
-```julia-repl
-julia> reaction_change_fraction("CH4")
-Dict{String, Float64} with 4 entries:
-  "O2"  => -3.98926
-  "H2O" => 2.24595
-  "CO2" => 2.74331
-  "N2"  => 0.0
-```
-"""
-function reaction_change_fraction(fuel::String)
-    CHON = fuelbreakdown(fuel) # Returns number of C, H, O, and N atoms in fuel
-    element_mass_array = [12.01070, 1.00794, 15.99940, 14.00670]
-
-    Mfuel = dot(CHON, element_mass_array)
-
-    M_CO2 = 44.00950
-    M_N2 = 28.01340
-    M_H2O = 18.01528
-    M_O2 = 31.99880
-
-    # Calculate the number of moles of products + O₂
-    nCO2 = CHON[1] * 1.0
-    nN2 = CHON[4] / 2
-    nH2O = CHON[2] / 2
-    nO2 = -(CHON[1] + CHON[2] / 4 - CHON[3] / 2) # Oxygen is used up/ lost
-
-    ΔY = [M_CO2, M_N2, M_H2O, M_O2] .* [nCO2, nN2, nH2O, nO2] ./ Mfuel
-
-    # return as dict to make it easier to set Gas mass fractions
-    names = ["CO2", "N2", "H2O", "O2"]
-    Ydict = Dict(zip(names, ΔY))
-
-    return Ydict
-
-end
-
-"""
     reaction_change_molar_fraction(fuel::AbstractString)
 
 Returns the mole fraction change due to complete combustion of one mole of

@@ -12,7 +12,9 @@ data over the full species database so that mixture coefficients can be
 formed by pure static-array algebra — no Dicts, no string lookups.
 
 ```julia-repl
-julia> sys = Mixer(DryAir, IdealGasThermo.vitiated_species("CH4", "Air", 0.03));
+julia> comb = Combustor("CH4", DryAir);
+
+julia> sys = Mixer(DryAir, products(comb, 0.03));
 
 julia> gas = mixed(sys, 0.25); # FrozenGas of the merged mixture
 ```
