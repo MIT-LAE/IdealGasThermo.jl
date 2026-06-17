@@ -130,10 +130,19 @@ terms exactly.
   architecture forbids.
 - The **pure core** (`FrozenGas` + property functions + inversions) is the
   deep module everything else composes over.
-- The mutable `Gas`/`Gas1D` types are the legacy *stateful convenience layer*;
-  they are kept API-stable but are not the hot path. **`Gas1D` is deprecated**
-  (ADR-0002): use `FrozenGas`. `Gas{N}` remains only as the composition
-  workspace until pure FrozenGas-producing constructors replace it.
+- The mutable `Gas`/`Gas1D` types are the legacy *stateful convenience layer*.
+  As of `2.0.0-beta1` the **whole layer is loudly deprecated** and on a
+  scheduled-deletion path (ADR-0002, ADR-0007): `Gas{N}`, `Gas1D`, and the
+  Dict-combustion / mutable-turbo functions they back are removed in `2.0.0`
+  final, after a `2.0.0-betaN` migration window. The pure core no longer touches
+  them — `DryAir` is now built directly from `Xair` (`generate_composite_species(
+  Xidict2Array(Xair), …)`), not through `Gas()` — so the deletion is purely
+  subtractive. **Migration:** `Gas{N}` → `FrozenGas` (composition + properties);
+  a mutable `Gas`/`Gas1D` parcel → a `GasState` (gas, T, P) point with the process
+  verbs; `set_TP!`/`set_h!`/`set_hP!`/`set_Δh!` → `GasState` constructors +
+  `compress`/`expand`/`add_heat`/`add_work`. Deprecation is signalled by a loud,
+  once-per-session `@warn` on the `Gas`/`Gas1D` **constructors** only (the choke
+  point every legacy path goes through; `src/deprecation.jl`, ADR-0007).
 - `FrozenGas` keeps its name permanently — it is not renamed to `Gas` in
   v2.0 (ADR-0002: no name recycling across a semantics flip; "frozen" names
   the no-dissociation contract).
