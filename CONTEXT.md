@@ -146,6 +146,16 @@ terms exactly.
 - `FrozenGas` keeps its name permanently — it is not renamed to `Gas` in
   v2.0 (ADR-0002: no name recycling across a semantics flip; "frozen" names
   the no-dissociation contract).
+- **Exported property API.** The pure-core accessors are exported for
+  unqualified use by consumers (e.g. PowerCycles): `cₚ`/`c_p`, `h`, `s0`,
+  `gamma`, `R`, `T_of_h`, `T_isentropic`, `pressure_ratio` (plus `props`,
+  `temperature`, `entropy`, `density`, `speed_of_sound`). Specific heat is
+  exported as **`cₚ` and `c_p`** — interchangeable aliases (`const cₚ = cp`,
+  `const c_p = cp`) of the internal function `cp`, which is *not* exported
+  because the bare name collides with `Base.cp` (file copy). `cp` stays usable
+  as `IdealGasThermo.cp`, and the `props` NamedTuple keeps the field name `cp`
+  (field accessors are reached only as `.cp`, never as a bare identifier, so no
+  collision). Internal code and tests continue to use `cp`.
 - Derivatives are **analytic first**: ForwardDiff `Dual` support is provided by
   a package extension that dispatches to closed-form derivatives
   (dh/dT = cp, dϕ/dT = cp/T) and implicit-function-theorem rules for
