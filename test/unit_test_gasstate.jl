@@ -2,11 +2,6 @@ using ForwardDiff
 
 @testset "GasState and process verbs" begin
 
-    # Gas1D is the deprecated legacy reference (ADR-0002); silence its
-    # depwarn where it is constructed for agreement checks
-    quiet_Gas1D() =
-        Base.CoreLogging.with_logger(() -> Gas1D(), Base.CoreLogging.NullLogger())
-
     @testset "GasState construction and accessors" begin
         air = FrozenGas(DryAir)
         st = GasState(air, 288.15, 101325.0)
@@ -19,59 +14,44 @@ using ForwardDiff
         @test_throws ErrorException st.T = 300.0
         # mixed Real arguments promote (the F type parameter is shared)
         @test GasState(air, 288, 101325.0) === GasState(air, 288.0, 101325.0)
-        # accessors forward to the gas property functions at st.T
-        for (T, P) in [(288.15, 101325.0), (1600.0, 12.0e5), (999.9, 5.0e4)]
-            s = GasState(air, T, P)
-            @test IdealGasThermo.cp(s) === IdealGasThermo.cp(air, T)
-            @test IdealGasThermo.h(s) === IdealGasThermo.h(air, T)
-            @test IdealGasThermo.s0(s) === IdealGasThermo.s0(air, T)
-            @test IdealGasThermo.gamma(s) === IdealGasThermo.gamma(air, T)
-            @test IdealGasThermo.R(s) === IdealGasThermo.R(air)
-        end
+        # accessors forward to the gas property functions at st.T (one state
+        # suffices — these are 1-line forwards, not T-dependent wiring)
+        s = GasState(air, 1600.0, 12.0e5)
+        @test IdealGasThermo.cp(s) === IdealGasThermo.cp(air, 1600.0)
+        @test IdealGasThermo.h(s) === IdealGasThermo.h(air, 1600.0)
+        @test IdealGasThermo.s0(s) === IdealGasThermo.s0(air, 1600.0)
+        @test IdealGasThermo.gamma(s) === IdealGasThermo.gamma(air, 1600.0)
+        @test IdealGasThermo.R(s) === IdealGasThermo.R(air)
         # works for FastFrozenGas too (not isbits — holds table Vectors)
         fg = FastFrozenGas(air)
         stf = GasState(fg, 600.0, 2.0e5)
         @test IdealGasThermo.h(stf) === IdealGasThermo.h(air, 600.0)
     end
 
-    @testset "entropy and density agree with legacy Gas1D" begin
+    @testset "entropy and density" begin
         air = FrozenGas(DryAir)
-        g1d = quiet_Gas1D() # legacy stateful layer, same DryAir composition
-        for (T, P) in [(288.15, 101325.0), (626.0, 12.159e5), (1600.0, 12.159e5),
-                       (882.6, 101325.0), (250.0, 2.0e4)]
-            set_TP!(g1d, T, P)
-            st = GasState(air, T, P)
-            @test entropy(st) ≈ g1d.s rtol = 1e-10   # s = s0(T) − R·ln(P/Pstd)
-            @test density(st) ≈ g1d.ρ rtol = 1e-10   # ρ = P/(R·T) [kg/m³]
-        end
-        # unexported short aliases for qualified use
+        # entropy's pressure term is pinned independently in
+        # unit_test_properties.jl (s(T,kP) = s(T,P) − R·ln k) and s0 is
+        # CEA-anchored; here we keep the P = Pstd case, where the term vanishes
+        # and entropy must equal s0 exactly. (Replaces a same-kernel Gas1D echo.)
+        @test entropy(GasState(air, 500.0, IdealGasThermo.Pstd)) ≈
+              IdealGasThermo.s0(air, 500.0) rtol = 1e-14
+        # density absolute anchor: dry air at sea-level standard ≈ 1.225 kg/m³
+        # (ideal-gas law ρ = P/RT; catches a units/formula error)
+        @test density(GasState(air, 288.15, 101325.0)) ≈ 1.2250 atol = 1e-3
+        # unexported short aliases
         st = GasState(air, 288.15, 101325.0)
         @test IdealGasThermo.s(st) === entropy(st)
         @test IdealGasThermo.rho(st) === density(st)
-        # entropy at standard pressure is the entropy complement itself
-        @test entropy(GasState(air, 500.0, IdealGasThermo.Pstd)) ≈
-              IdealGasThermo.s0(air, 500.0) rtol = 1e-14
     end
 
-    @testset "scalar compress/expand vs legacy turbo verbs" begin
+    @testset "scalar compress/expand contracts" begin
         air = FrozenGas(DryAir)
-        # legacy compress(gas::AbstractGas, PR, ηp): tolerance-limited Newton
-        for (T1, PR, etap) in [(288.15, 12.0, 1.0), (288.15, 12.0, 0.9),
-                               (500.0, 30.0, 0.85), (900.0, 1.05, 1.0)]
-            g1d = quiet_Gas1D()
-            set_TP!(g1d, T1, 101325.0)
-            IdealGasThermo.compress(g1d, PR, etap)
-            @test compress(air, T1, PR; ηp = etap) ≈ g1d.T rtol = 1e-7
-        end
-        # legacy expand(gas::AbstractGas, PR, ηp) takes PR ≤ 1; the new verb
-        # takes the SAME physical process as ratio ≥ 1 — direction is in the verb
-        for (T1, PR, etap) in [(1600.0, 4.0, 1.0), (1600.0, 4.0, 0.9),
-                               (1323.8, 5.3, 0.92), (900.0, 1.05, 1.0)]
-            g1d = quiet_Gas1D()
-            set_TP!(g1d, T1, 101325.0)
-            IdealGasThermo.expand(g1d, 1 / PR, etap)
-            @test expand(air, T1, PR; ηp = etap) ≈ g1d.T rtol = 1e-7
-        end
+        # (The legacy `≈ Gas1D` agreement loops are gone — a same-NASA-9-kernel
+        # twin. compress/expand are pinned here by their defining contracts:
+        # they reduce to the isentrope at ηp = 1, round-trip, and obey the
+        # entropy relation; the polytropic ηp ≠ 1 case generates entropy per
+        # the second-law test in unit_test_properties.jl.)
         # both verbs demand ratio ≥ 1: direction lives in the verb, not the number
         @test_throws ArgumentError compress(air, 288.15, 0.5)
         @test_throws ArgumentError expand(air, 1600.0, 0.25)
@@ -95,25 +75,26 @@ using ForwardDiff
         air = FrozenGas(DryAir)
         st2 = GasState(air, 288.15, 101325.0)
         # compress: T from the scalar verb, P multiplied by PR
+        # (No `st3.T ≈ compress(air, st.T, PR)` — the state method is defined as
+        # exactly that call, so it's a wrapper-equals-its-own-body tautology. The
+        # state verb's T is exercised by the round trip below; here we check the
+        # state-layer-specific claims: it returns a GasState and walks the P rail.)
         st3 = compress(st2, 12.0; ηp = 0.9)
         @test st3 isa GasState
-        @test st3.T ≈ compress(air, 288.15, 12.0; ηp = 0.9) rtol = 1e-14
         @test st3.P ≈ 12.0 * 101325.0 rtol = 1e-14
         @test st3.gas === air
-        # expand: T from the scalar verb, P divided by PR
+        # expand: P divided by PR
         st5 = GasState(air, 1600.0, 12.0 * 101325.0)
         st9 = expand(st5, 4.0; ηp = 0.92)
-        @test st9.T ≈ expand(air, 1600.0, 4.0; ηp = 0.92) rtol = 1e-14
         @test st9.P ≈ 3.0 * 101325.0 rtol = 1e-14
         # ratio validation carries through the state layer
         @test_throws ArgumentError compress(st2, 0.5)
         @test_throws ArgumentError expand(st5, 0.25)
         # expand_to: the nozzle convenience — hits the target pressure exactly
+        # (its T is the same wrapper-of-expand tautology; the meaningful claim is
+        # that it lands on the named pressure)
         stn = expand_to(st5, 101325.0)
         @test stn.P == 101325.0
-        @test stn.T ≈ expand(air, 1600.0, 12.0) rtol = 1e-14
-        stn9 = expand_to(st5, 101325.0; ηp = 0.92)
-        @test stn9.T ≈ expand(air, 1600.0, 12.0; ηp = 0.92) rtol = 1e-14
         # expand_to cannot raise the pressure
         @test_throws ArgumentError expand_to(st2, 2.0 * 101325.0)
         # round trip: expand undoes compress, state-for-state, at ηp = 1
@@ -167,18 +148,18 @@ using ForwardDiff
         @test_throws ArgumentError expand(sthot, 4.0; ηp = 0.9, ηs = 0.9)
         @test_throws ArgumentError expand_to(sthot, 101325.0; ηp = 0.9, ηs = 0.9)
 
-        # state layer: ηs degrades T but lands on the SAME pressure as ηp
+        # state layer: ηs degrades T but lands on the SAME pressure as ηp — the
+        # meaningful state-layer claim (the T-equals-scalar-verb echo is dropped
+        # as a wrapper tautology)
         c_ηp = compress(st, 12.0; ηp = 0.85)
         c_ηs = compress(st, 12.0; ηs = 0.85)
         @test c_ηp.P ≈ c_ηs.P rtol = 1e-14           # outlet pressure is P·PR either way
-        @test c_ηs.T ≈ compress(air, st.T, 12.0; ηs = 0.85) rtol = 1e-14
-        e_ηs = expand(sthot, 4.0; ηs = 0.9)
-        @test e_ηs.P ≈ sthot.P / 4.0 rtol = 1e-14
-        @test e_ηs.T ≈ expand(air, sthot.T, 4.0; ηs = 0.9) rtol = 1e-14
+        # at the same numeric value, the polytropic outlet is hotter: for a
+        # compressor ηp ≥ ηs, so ηp = 0.85 is a worse machine than ηs = 0.85
+        @test c_ηp.T > c_ηs.T
+        @test expand(sthot, 4.0; ηs = 0.9).P ≈ sthot.P / 4.0 rtol = 1e-14
         # expand_to with ηs hits the named pressure exactly
-        en = expand_to(sthot, 101325.0; ηs = 0.9)
-        @test en.P == 101325.0
-        @test en.T ≈ expand(air, sthot.T, sthot.P / 101325.0; ηs = 0.9) rtol = 1e-14
+        @test expand_to(sthot, 101325.0; ηs = 0.9).P == 101325.0
 
         # works through the accelerated flavor
         fg = FastFrozenGas(air)
@@ -215,28 +196,24 @@ using ForwardDiff
         @test add_heat(st, 0.0).T ≈ st.T rtol = 1e-12
     end
 
-    @testset "add_work/extract_work vs legacy set_Δh!" begin
+    @testset "add_work/extract_work: energy balance and polytropic pressure" begin
         air = FrozenGas(DryAir)
+        R = IdealGasThermo.R(air)
+        s0 = IdealGasThermo.s0
         w = 3.5e5 # J/kg, always nonnegative — direction lives in the verb
+        # work IS the enthalpy change, for any ηp (ηp only sets how much pressure
+        # that enthalpy buys along the polytrope). The pressure-walk checks pin
+        # the K convention — add uses K = ηp, extract uses K = 1/ηp — which is
+        # exactly what the dropped set_Δh! agreement verified, now self-contained.
         for etap in (1.0, 0.9)
-            # add_work ↔ legacy set_Δh!(gas, +w, ηp): P2 = P1·exp(ηp/R·Δs0)
             st1 = GasState(air, 288.15, 101325.0)
-            g1d = quiet_Gas1D()
-            set_TP!(g1d, st1.T, st1.P)
-            set_Δh!(g1d, w, etap)
             st2 = add_work(st1, w; ηp = etap)
-            @test st2.T ≈ g1d.T rtol = 1e-9
-            @test st2.P ≈ g1d.P rtol = 1e-8
             @test IdealGasThermo.h(st2) ≈ IdealGasThermo.h(st1) + w rtol = 1e-12
-            # extract_work ↔ legacy set_Δh!(gas, −w, 1/ηp): P2 = P1·exp(Δs0/(ηp·R))
+            @test st2.P ≈ st1.P * exp(etap * (s0(air, st2.T) - s0(air, st1.T)) / R) rtol = 1e-12
             st5 = GasState(air, 1600.0, 12.159e5)
-            g1d = quiet_Gas1D()
-            set_TP!(g1d, st5.T, st5.P)
-            set_Δh!(g1d, -w, 1 / etap)
             st6 = extract_work(st5, w; ηp = etap)
-            @test st6.T ≈ g1d.T rtol = 1e-9
-            @test st6.P ≈ g1d.P rtol = 1e-8
             @test IdealGasThermo.h(st6) ≈ IdealGasThermo.h(st5) - w rtol = 1e-12
+            @test st6.P ≈ st5.P * exp((s0(air, st6.T) - s0(air, st5.T)) / (etap * R)) rtol = 1e-12
         end
         # at ηp = 1 both reduce to the isentrope: P follows pressure_ratio
         st1 = GasState(air, 288.15, 101325.0)

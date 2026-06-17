@@ -78,3 +78,28 @@
         end
     end
 end
+
+@testset "CEA Air-species reference (dry-air pseudo-species)" begin
+    # Same CEA ThermoBuild source, table for the "Air" pseudo-species
+    # (https://cearun.grc.nasa.gov/ThermoBuild/). Anchors the property values of
+    # the dry-air species directly on FrozenGas — replacing the old textbook
+    # `cp(air,300) ≈ 1005 atol=5` sanity with a tight, sourced check. Same atol
+    # model as above (CEA's printed molar units, 1 ULP). Curated T straddle the
+    # 1000 K seam. Sensible h (H−H298 column) avoids the formation datum.
+    #            T        Cp[J/mol/K]  H−H298[kJ/mol]  S[J/mol/K]
+    air_table = [(200.0,  29.034,      -2.852,         187.221),
+                 (500.0,  29.821,       5.932,         214.001),
+                 (900.0,  32.467,      18.386,         232.224),
+                 (1000.0, 33.050,      21.662,         235.676),   # seam
+                 (1100.0, 33.571,      24.994,         238.851),
+                 (1500.0, 35.076,      38.749,         249.504),
+                 (2000.0, 36.216,      56.595,         259.764)]
+    sp = species_in_spdict("Air")
+    air = FrozenGas(sp)
+    h298 = IdealGasThermo.h(air, 298.15)
+    for (T, Cp, Hs, S) in air_table
+        @test IdealGasThermo.cp(air, T) * sp.MW / 1000 ≈ Cp atol = 1e-3          # J/mol/K
+        @test IdealGasThermo.s0(air, T) * sp.MW / 1000 ≈ S atol = 1e-3           # J/mol/K
+        @test (IdealGasThermo.h(air, T) - h298) * sp.MW / 1e6 ≈ Hs atol = 1e-3   # kJ/mol, sensible
+    end
+end

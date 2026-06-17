@@ -162,3 +162,24 @@ terms exactly.
   via one forward evaluation). This preserves the split-rule speed: the
   substance-Dual inversion is ~36× faster than differentiating through the
   loop and zero-allocation, within ~13% of the constant-substance baseline.
+
+## Testing vocabulary (see docs/adr/0006)
+
+- **property (metamorphic) test** — a check that holds over the whole space of
+  gases the package can build, independent of any reference implementation:
+  `∫cp` vs `h`/`s0` by quadrature, second-law entropy generation, process
+  round-trips, `s(T,kP) = s(T,P) − R·ln k`, mixing symmetry, combustion mass
+  conservation, AD-vs-FD. The permanent oracle (`test/unit_test_properties.jl`).
+- **reference anchor** — an absolute-value check against an *external
+  authority*, not an in-package twin. The CEA anchors
+  (`test/unit_test_cea_reference.jl`, data in `test/CEA_output.txt`) evaluate
+  the *same* NASA-9 coefficients the package loads, so `cp`/`s0`/`h` are
+  compared in CEA's printed molar units to its printed precision
+  (`atol = 1e-3` = 1 unit in the last place: 5e-4 CEA rounding + the small
+  `Runiv = 8.3145` vs CEA `8.31451` difference, heaviest on `s0`). Anchors the
+  one thing metamorphic tests cannot — a systematic datum/units/scale error.
+- **migration test** — a temporary "new core agrees with the legacy mutable
+  layer" check (`≈ Gas1D`, `≈ vitiated_species`, `≈ set_Δh!`). Scaffolding
+  only: it is a same-NASA-9-kernel twin (circular) and dies with the mutable
+  layer at v2.0. The pure core is **not** validated this way (ADR-0006);
+  `Gas`/`Gas1D` keep a minimal smoke test in the legacy-only files until v2.0.

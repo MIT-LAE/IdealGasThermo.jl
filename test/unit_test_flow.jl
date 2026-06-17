@@ -2,10 +2,6 @@ using ForwardDiff
 
 @testset "gas dynamics: speed of sound, Mach, stagnation/static" begin
 
-    # Gas1D is the deprecated legacy reference (ADR-0002); silence its depwarn
-    quiet_Gas1D() =
-        Base.CoreLogging.with_logger(() -> Gas1D(), Base.CoreLogging.NullLogger())
-
     air = FrozenGas(DryAir)
 
     @testset "speed_of_sound is √(γRT), pure in (gas, T)" begin
@@ -66,20 +62,6 @@ using ForwardDiff
         sts = static_state(st, 0.9)
         @test sts.T < st.T
         @test sts.P < st.P
-    end
-
-    @testset "static agrees with legacy gas_Mach!(gas, 0, M, 1)" begin
-        # gas_Mach! from M0 = 0 is exactly the total→static problem `static_state`
-        # solves; the legacy Newton runs to tol 1e-6, 10 iterations
-        for (Tt, Pt, M) in ((300.0, 2.0e5, 0.85), (1200.0, 8.0e5, 0.6),
-                            (250.0, 4.0e4, 1.2))
-            g = quiet_Gas1D()
-            set_TP!(g, Tt, Pt)
-            IdealGasThermo.gas_Mach!(g, 0.0, M, 1.0)
-            sts = static_state(GasState(air, Tt, Pt), M)
-            @test sts.T ≈ g.T rtol = 1e-5
-            @test sts.P ≈ g.P rtol = 1e-5
-        end
     end
 
     @testset "low-Mach limit matches the constant-γ ratio" begin
