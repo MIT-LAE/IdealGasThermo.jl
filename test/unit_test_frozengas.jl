@@ -64,6 +64,8 @@ using ForwardDiff
         @test h(air, T) == IdealGasThermo.h(air, T)
         @test s0(air, T) == IdealGasThermo.s0(air, T)
         @test gamma(air, T) == IdealGasThermo.gamma(air, T)
+        @test γ === gamma                       # Unicode alias of gamma
+        @test γ(air, T) == gamma(air, T)
         @test R(air) == IdealGasThermo.R(air)
         @test T_of_h(air, h(air, T)) ≈ T rtol = 1e-10
         T2 = T_isentropic(air, 300.0, 8.0)

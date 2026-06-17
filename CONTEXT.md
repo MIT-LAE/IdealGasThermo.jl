@@ -148,7 +148,7 @@ terms exactly.
   the no-dissociation contract).
 - **Exported property API.** The pure-core accessors are exported for
   unqualified use by consumers (e.g. PowerCycles): `cₚ`/`c_p`, `h`, `s0`,
-  `gamma`, `R`, `T_of_h`, `T_isentropic`, `pressure_ratio` (plus `props`,
+  `gamma`/`γ`, `R`, `T_of_h`, `T_isentropic`, `pressure_ratio` (plus `props`,
   `temperature`, `entropy`, `density`, `speed_of_sound`). Specific heat is
   exported as **`cₚ` and `c_p`** — interchangeable aliases (`const cₚ = cp`,
   `const c_p = cp`) of the internal function `cp`, which is *not* exported

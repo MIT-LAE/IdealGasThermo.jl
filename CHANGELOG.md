@@ -14,8 +14,9 @@ Nothing is removed yet — this release is safe to adopt and migrate against.
 
 - **The pure-core property accessors are now exported**, so `using IdealGasThermo`
   makes them callable without qualification: `cₚ` / `c_p` (specific heat), `h`,
-  `s0`, `gamma`, `R`, `T_of_h`, `T_isentropic`, `pressure_ratio`. Previously these
-  were internal (`IdealGasThermo.cp(gas, T)`).
+  `s0`, `gamma` / `γ`, `R`, `T_of_h`, `T_isentropic`, `pressure_ratio`. Previously
+  these were internal (`IdealGasThermo.cp(gas, T)`). The ratio of specific heats is
+  exported under both `gamma` and the Unicode alias `γ`.
   - Specific heat is exported as **`cₚ` and `c_p`** (interchangeable aliases of one
     function). The bare name `cp` is *not* exported because it would shadow
     `Base.cp` (file copy); it remains reachable as `IdealGasThermo.cp`. The
