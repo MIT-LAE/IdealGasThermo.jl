@@ -58,6 +58,17 @@ Retire the legacy layer in **two phases**, separated by a migration window:
    `unit_test_properties` with `products(Combustor(...), FAR)` (ADR-0006 §75). This
    touches no pure-core oracle. Because the betas are pre-releases of `2.0.0`, `Gas`
    only ever exists in pre-release versions; the first *stable* 2.x release has it gone.
+   **Before** deleting the legacy test files, two coverage items must be re-homed into
+   pure-core test files, because they cover functions reachable from the pure core
+   (verified by call-graph trace): (a) the coefficient-level correctness check of
+   `generate_composite_species` (composite vs the fitted "Air" species: MW / Hf /
+   `alow` / `ahigh`), currently only in `test/unit_test_composite.jl` —
+   `generate_composite_species` is reachable from `DryAir`, `FrozenGas(X, name)`, and
+   `humid_air`; (b) the component-value pin of `reaction_change_molar_fraction`,
+   currently only in `test/unit_test_vitiated.jl` — it is called directly by the pure
+   `Combustor` constructor (`src/combustor.jl`). The other two legacy combustion
+   functions (`stoich_molar_FOR`, `vitiated_mixture`) are legacy-only and their tests
+   die correctly with the layer.
 
 PowerCycles.jl pins to a published `2.0.0-betaN` tag on
 `github.com/MIT-LAE/IdealGasThermo.jl`
