@@ -271,7 +271,7 @@ end
 """
     add_heat(st::GasState, q) -> GasState
 
-Constant-pressure heat addition of `q` [J/kg] (signed: negative `q`
+Constant-pressure heat addition of `q` `J/kg` (signed: negative `q`
 cools): a new state at the same pressure with `h(out) = h(st) + q`, the
 temperature from the enthalpy inversion. The input state is untouched.
 """
@@ -280,7 +280,7 @@ add_heat(st::GasState, q) = GasState(st.gas, T_of_h(st.gas, h(st.gas, st.T) + q)
 """
     add_work(st::GasState, w; ηp = 1.0) -> GasState
 
-Polytropic work *addition* of `w ≥ 0` [J/kg] (`ArgumentError` if `w < 0` —
+Polytropic work *addition* of `w ≥ 0` `J/kg` (`ArgumentError` if `w < 0` —
 the sign convention lives in the verb; see [`extract_work`](@ref)): a new
 state with `h(out) = h(st) + w` (temperature from the enthalpy inversion)
 and the pressure walked along the polytrope,
@@ -293,7 +293,7 @@ add_work(st::GasState, w; ηp = 1.0) = _work(st, w, w, ηp)
 """
     extract_work(st::GasState, w; ηp = 1.0) -> GasState
 
-Polytropic work *extraction* of `w ≥ 0` [J/kg] (`ArgumentError` if
+Polytropic work *extraction* of `w ≥ 0` `J/kg` (`ArgumentError` if
 `w < 0`): a new state with `h(out) = h(st) − w` (temperature from the
 enthalpy inversion) and the pressure walked along the polytrope,
 `P2 = P1·exp((s0(T2) − s0(T1))/(ηp·R))` — the expansion ηp convention,
