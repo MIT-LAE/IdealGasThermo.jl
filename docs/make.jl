@@ -10,6 +10,7 @@ makedocs(
         "Home" => "index.md",
         "Thermodynamic Data" => "readthermo.md",
         "Gas and Species" => "gas.md",
+        "Pure-core API (v2)" => "purecore.md",
         "Ideal gas thermodynamics" => "idealgasthermo.md",
         "Combustion" => "combustion.md",
         "Performance benchmarks" => "benchmark.md",

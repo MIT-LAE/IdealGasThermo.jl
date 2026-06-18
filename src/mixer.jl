@@ -2,7 +2,7 @@
     Mixer
 
 Precomputed two-stream mixing system: the pure, allocation-free replacement
-for the Dict-based composition step of the legacy [`gas_mixing`](@ref) path.
+for the Dict-based composition step of the legacy `gas_mixing` path.
 
 Built **once** from two composition-bearing streams (construction may consult
 the global species database `spdict`; [`mixed`](@ref) calls never do).
@@ -70,7 +70,7 @@ through `mratio` works).
 
 The merged composition follows the mass-fraction law of mixtures
 `Y(mratio) = (Y₁ + mratio·Y₂)/(1 + mratio)` (as in the legacy
-[`gas_mixing`](@ref)), converted to mole fractions
+`gas_mixing`), converted to mole fractions
 `X = (Y ./ MW)/Σ(Yᵢ/MWᵢ)`; equivalent NASA-9 mixture coefficients are
 formed by mole-fraction weighting with the entropy of mixing
 `-Σ Xᵢ ln Xᵢ` of the **merged** composition folded into the integration

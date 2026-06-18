@@ -8,7 +8,7 @@ Holds a single equivalent NASA-9 coefficient set for the mixture,
 **mass-scaled at construction** (coefficients premultiplied by `1000/MW` so
 property polynomials evaluate directly in J/kg-based SI units, with no
 per-call division or species summation). Construct from any
-[`AbstractSpecies`](@ref) (a database [`species`](@ref) or a
+`AbstractSpecies` (a database [`species`](@ref) or a
 [`composite_species`](@ref)):
 
 ```julia-repl
