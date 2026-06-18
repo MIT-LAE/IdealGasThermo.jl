@@ -83,15 +83,14 @@ using ForwardDiff
 
     @testset "zero allocations after warmup" begin
         air = FrozenGas(DryAir)
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
-        @test measured(IdealGasThermo.cp, air, 600.0) == 0
-        @test measured(IdealGasThermo.h, air, 600.0) == 0
-        @test measured(IdealGasThermo.s0, air, 600.0) == 0
-        @test measured(IdealGasThermo.gamma, air, 600.0) == 0
-        @test measured(props, air, 600.0) == 0
-        @test measured(IdealGasThermo.T_of_h, air, 5e5) == 0
-        @test measured(IdealGasThermo.T_isentropic, air, 288.15, 12.0) == 0
-        @test measured(IdealGasThermo.pressure_ratio, air, 288.15, 600.0) == 0
+        @test (@ballocated IdealGasThermo.cp($air, 600.0) samples = 1 evals = 1) == 0
+        @test (@ballocated IdealGasThermo.h($air, 600.0) samples = 1 evals = 1) == 0
+        @test (@ballocated IdealGasThermo.s0($air, 600.0) samples = 1 evals = 1) == 0
+        @test (@ballocated IdealGasThermo.gamma($air, 600.0) samples = 1 evals = 1) == 0
+        @test (@ballocated props($air, 600.0) samples = 1 evals = 1) == 0
+        @test (@ballocated IdealGasThermo.T_of_h($air, 5e5) samples = 1 evals = 1) == 0
+        @test (@ballocated IdealGasThermo.T_isentropic($air, 288.15, 12.0) samples = 1 evals = 1) == 0
+        @test (@ballocated IdealGasThermo.pressure_ratio($air, 288.15, 600.0) samples = 1 evals = 1) == 0
     end
 
     @testset "derivatives: ForwardDiff vs analytic" begin
@@ -130,12 +129,11 @@ using ForwardDiff
         @test Base.get_extension(IdealGasThermo, :IdealGasThermoForwardDiffExt) !== nothing
         air = FrozenGas(DryAir)
         D = ForwardDiff.derivative
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
         # Dual-typed evaluation stays allocation-free through the rules
-        @test measured(D, t -> IdealGasThermo.h(air, t), 600.0) == 0
-        @test measured(D, t -> props(air, t).h, 600.0) == 0
-        @test measured(D, hh -> IdealGasThermo.T_of_h(air, hh), 5e5) == 0
-        @test measured(D, pr -> IdealGasThermo.T_isentropic(air, 288.15, pr), 12.0) == 0
+        @test (@ballocated $D(t -> IdealGasThermo.h($air, t), 600.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $D(t -> props($air, t).h, 600.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $D(hh -> IdealGasThermo.T_of_h($air, hh), 5e5) samples = 1 evals = 1) == 0
+        @test (@ballocated $D(pr -> IdealGasThermo.T_isentropic($air, 288.15, pr), 12.0) samples = 1 evals = 1) == 0
         # nested duals: d²h/dT² == dcp/dT
         d2h = D(t -> D(s -> IdealGasThermo.h(air, s), t), 1600.0)
         @test d2h ≈ D(t -> IdealGasThermo.cp(air, t), 1600.0) rtol = 1e-10

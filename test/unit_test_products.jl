@@ -16,11 +16,10 @@ using ForwardDiff
 
     @testset "zero allocations after warmup" begin
         sys = Combustor("CH4", "Air")
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
-        @test measured(products, sys, 0.03) == 0
+        @test (@ballocated products($sys, 0.03) samples = 1 evals = 1) == 0
         # composed with a property read, still allocation-free
         h_at(sys, FAR, T) = IdealGasThermo.h(products(sys, FAR), T)
-        @test measured(h_at, sys, 0.03, 1600.0) == 0
+        @test (@ballocated $h_at($sys, 0.03, 1600.0) samples = 1 evals = 1) == 0
     end
 
     @testset "FAR-differentiability" begin

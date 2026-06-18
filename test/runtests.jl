@@ -1,6 +1,7 @@
 using IdealGasThermo
 using Test
 using Aqua
+using BenchmarkTools
 
 @testset "IdealGasThermo" verbose = true begin
     @testset "Aqua" begin
