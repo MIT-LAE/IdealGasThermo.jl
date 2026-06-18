@@ -52,7 +52,6 @@ IdealGasThermo.fuelbreakdown
 IdealGasThermo.stoich_molar_fuel_oxy_ratio
 IdealGasThermo.stoich_molar_FOR
 IdealGasThermo.stoich_FOR
-IdealGasThermo.reaction_change_fraction
 IdealGasThermo.reaction_change_molar_fraction
 ```
 

@@ -62,7 +62,7 @@ end  # function generate_humid_air
 """
     humid_air(; SH = nothing, RH = nothing, T = Tstd, P = Pstd) -> FrozenGas
 
-Humid-air [`FrozenGas`](@ref): dry air ([`Xair`](@ref Xair)) plus water
+Humid-air [`FrozenGas`](@ref): dry air (`Xair`) plus water
 vapor. Specify the humidity as exactly one of
 
   - `SH` — specific humidity ω [kg water / kg dry air], or
