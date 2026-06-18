@@ -83,18 +83,17 @@ using ForwardDiff
     end
 
     @testset "zero allocations after warmup" begin
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
         st = GasState(air, 288.15, 101325.0)
         sos(g, T) = speed_of_sound(g, T)
         sosst(x) = speed_of_sound(x)
         mch(x, V) = mach(x, V)
         stag(x, M) = stagnation_state(x, M)
         stat(x, M) = static_state(x, M)
-        @test measured(sos, air, 288.15) == 0
-        @test measured(sosst, st) == 0
-        @test measured(mch, st, 100.0) == 0
-        @test measured(stag, st, 0.8) == 0
-        @test measured(stat, st, 0.8) == 0
+        @test (@ballocated $sos($air, 288.15) samples = 1 evals = 1) == 0
+        @test (@ballocated $sosst($st) samples = 1 evals = 1) == 0
+        @test (@ballocated $mch($st, 100.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $stag($st, 0.8) samples = 1 evals = 1) == 0
+        @test (@ballocated $stat($st, 0.8) samples = 1 evals = 1) == 0
     end
 
     @testset "ForwardDiff: analytic tangents through the flow verbs" begin

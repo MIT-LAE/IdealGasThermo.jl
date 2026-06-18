@@ -111,16 +111,15 @@ using ForwardDiff
         air = FrozenGas(DryAir)
         seeded = FastFrozenGas(air) # construction allocates (tables); calls must not
         fast = FastFrozenGas(air, mode = :fast)
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
         hin = IdealGasThermo.h(air, 700.0) # in-range target
-        @test measured(Th, seeded, hin) == 0
-        @test measured(Cmp, seeded, 288.15, 12.0) == 0
-        @test measured(Exp, seeded, 1600.0, 4.0) == 0
-        @test measured(Th, fast, hin) == 0
-        @test measured(Cmp, fast, 288.15, 12.0) == 0
+        @test (@ballocated $Th($seeded, $hin) samples = 1 evals = 1) == 0
+        @test (@ballocated $Cmp($seeded, 288.15, 12.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $Exp($seeded, 1600.0, 4.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $Th($fast, $hin) samples = 1 evals = 1) == 0
+        @test (@ballocated $Cmp($fast, 288.15, 12.0) samples = 1 evals = 1) == 0
         # the out-of-range fallback path is allocation-free too
-        @test measured(Th, seeded, IdealGasThermo.h(air, 2600.0)) == 0
-        @test measured(Cmp, seeded, 1500.0, 40.0) == 0
+        @test (@ballocated $Th($seeded, IdealGasThermo.h($air, 2600.0)) samples = 1 evals = 1) == 0
+        @test (@ballocated $Cmp($seeded, 1500.0, 40.0) samples = 1 evals = 1) == 0
     end
 
     @testset "ForwardDiff through the verb (IFT rules)" begin
@@ -152,9 +151,8 @@ using ForwardDiff
         @test D(hh -> Th(fast, hh), hT) ≈
               1 / IdealGasThermo.cp(air, Th(air, hT)) rtol = 1e-8
         # Dual-typed evaluation stays allocation-free through the rules
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
-        @test measured(D, hh -> Th(fg, hh), IdealGasThermo.h(air, 700.0)) == 0
-        @test measured(D, pr -> Cmp(fg, 288.15, pr), 12.0) == 0
+        @test (@ballocated $D(hh -> $Th($fg, hh), IdealGasThermo.h($air, 700.0)) samples = 1 evals = 1) == 0
+        @test (@ballocated $D(pr -> $Cmp($fg, 288.15, pr), 12.0) samples = 1 evals = 1) == 0
     end
 
 end

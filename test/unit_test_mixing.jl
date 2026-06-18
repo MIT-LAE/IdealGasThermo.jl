@@ -27,11 +27,10 @@ using ForwardDiff
     @testset "zero allocations after warmup" begin
         vit = IdealGasThermo.vitiated_species("CH4", "Air", 0.03)
         sys = Mixer(DryAir, vit)
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
-        @test measured(mixed, sys, 0.25) == 0
+        @test (@ballocated mixed($sys, 0.25) samples = 1 evals = 1) == 0
         # composed with a property read, still allocation-free
         h_at(sys, mratio, T) = IdealGasThermo.h(mixed(sys, mratio), T)
-        @test measured(h_at, sys, 0.25, 1600.0) == 0
+        @test (@ballocated $h_at($sys, 0.25, 1600.0) samples = 1 evals = 1) == 0
     end
 
     @testset "mratio-differentiability" begin

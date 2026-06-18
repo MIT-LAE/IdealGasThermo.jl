@@ -167,11 +167,10 @@ using ForwardDiff
         @test compress(fg, 288.15, 12.0; ηs = 0.85) ≈ compress(air, 288.15, 12.0; ηs = 0.85) rtol = 1e-10
 
         # zero allocations on the ηs path
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
         cmp_ηs(x, PR, e) = compress(x, PR; ηs = e)
         expd_ηs(x, PR, e) = expand(x, PR; ηs = e)
-        @test measured(cmp_ηs, st, 12.0, 0.85) == 0
-        @test measured(expd_ηs, sthot, 4.0, 0.9) == 0
+        @test (@ballocated $cmp_ηs($st, 12.0, 0.85) samples = 1 evals = 1) == 0
+        @test (@ballocated $expd_ηs($sthot, 4.0, 0.9) samples = 1 evals = 1) == 0
 
         # ForwardDiff flows through the ηs path (built on the IFT-ruled engines)
         T2 = compress(air, 288.15, 12.0; ηs = 0.85)
@@ -255,7 +254,6 @@ using ForwardDiff
         # with kwarg defaults have non-specializing kwsorters, and
         # multi-method local functions get boxed when captured — both would
         # charge allocations to the helper, not the package verbs
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
         mk(g, T, P) = GasState(g, T, P)
         ent(x) = entropy(x)
         den(x) = density(x)
@@ -275,30 +273,30 @@ using ForwardDiff
         addw_eta(x, w, e) = add_work(x, w; ηp = e)
         extw(x, w) = extract_work(x, w)
         extw_eta(x, w, e) = extract_work(x, w; ηp = e)
-        @test measured(mk, air, 288.15, 101325.0) == 0
-        @test measured(ent, st) == 0
-        @test measured(den, st) == 0
-        @test measured(cpst, st) == 0
-        @test measured(hst, st) == 0
-        @test measured(s0st, st) == 0
-        @test measured(gammast, st) == 0
-        @test measured(Rst, st) == 0
-        @test measured(cmp, st, 12.0) == 0
-        @test measured(cmp_eta, st, 12.0, 0.9) == 0
-        @test measured(expd, sthot, 4.0) == 0
-        @test measured(expd_eta, sthot, 4.0, 0.9) == 0
-        @test measured(expto, sthot, 101325.0) == 0
-        @test measured(expto_eta, sthot, 101325.0, 0.9) == 0
-        @test measured(addq, st, 5.0e5) == 0
-        @test measured(addw, st, 3.5e5) == 0
-        @test measured(addw_eta, st, 3.5e5, 0.9) == 0
-        @test measured(extw, sthot, 3.5e5) == 0
-        @test measured(extw_eta, sthot, 3.5e5, 0.9) == 0
+        @test (@ballocated $mk($air, 288.15, 101325.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $ent($st) samples = 1 evals = 1) == 0
+        @test (@ballocated $den($st) samples = 1 evals = 1) == 0
+        @test (@ballocated $cpst($st) samples = 1 evals = 1) == 0
+        @test (@ballocated $hst($st) samples = 1 evals = 1) == 0
+        @test (@ballocated $s0st($st) samples = 1 evals = 1) == 0
+        @test (@ballocated $gammast($st) samples = 1 evals = 1) == 0
+        @test (@ballocated $Rst($st) samples = 1 evals = 1) == 0
+        @test (@ballocated $cmp($st, 12.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $cmp_eta($st, 12.0, 0.9) samples = 1 evals = 1) == 0
+        @test (@ballocated $expd($sthot, 4.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $expd_eta($sthot, 4.0, 0.9) samples = 1 evals = 1) == 0
+        @test (@ballocated $expto($sthot, 101325.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $expto_eta($sthot, 101325.0, 0.9) samples = 1 evals = 1) == 0
+        @test (@ballocated $addq($st, 5.0e5) samples = 1 evals = 1) == 0
+        @test (@ballocated $addw($st, 3.5e5) samples = 1 evals = 1) == 0
+        @test (@ballocated $addw_eta($st, 3.5e5, 0.9) samples = 1 evals = 1) == 0
+        @test (@ballocated $extw($sthot, 3.5e5) samples = 1 evals = 1) == 0
+        @test (@ballocated $extw_eta($sthot, 3.5e5, 0.9) samples = 1 evals = 1) == 0
         # the scalar kernel verbs too
         cmps(g, T1, PR) = compress(g, T1, PR)
         expds(g, T1, PR) = expand(g, T1, PR)
-        @test measured(cmps, air, 288.15, 12.0) == 0
-        @test measured(expds, air, 1600.0, 4.0) == 0
+        @test (@ballocated $cmps($air, 288.15, 12.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $expds($air, 1600.0, 4.0) samples = 1 evals = 1) == 0
     end
 
     @testset "ForwardDiff through the state verbs" begin
@@ -348,9 +346,8 @@ using ForwardDiff
             end
         end
         # Dual-typed state evaluation stays allocation-free through the rules
-        measured(f::F, args...) where {F} = (f(args...); @allocated f(args...))
         cmpT(x, pr) = compress(x, pr).T
-        @test measured(D, pr -> cmpT(st, pr), 12.0) == 0
+        @test (@ballocated $D(pr -> $cmpT($st, pr), 12.0) samples = 1 evals = 1) == 0
     end
 
 end
