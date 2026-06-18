@@ -101,7 +101,7 @@ Pure, zero-allocation, generic over `Real`.
 """
     s0(gas::FrozenGas, T)
 
-Standard-state entropy function φ(T) = ∫cp/T dT [J/kg/K] (entropy
+Standard-state entropy function φ(T) = ∫cp/T dT `J/kg/K` (entropy
 complement). Entropy at pressure `P` is `s0(gas, T) - R(gas)*log(P/Pstd)`.
 Pure, zero-allocation, generic over `Real`.
 """
@@ -157,7 +157,7 @@ const NEWTON_MAXITER = 30
 """
     T_of_h(gas::FrozenGas, hspec; Tguess=500.0)
 
-Temperature [K] at which the gas has specific enthalpy `hspec` [J/kg]
+Temperature [K] at which the gas has specific enthalpy `hspec` `J/kg`
 (same formation-inclusive datum as [`h`](@ref)). Deterministic bounded
 Newton solve: relative tolerance 1e-12, ≤ 30 iterations; errors if not
 converged. Pure and zero-allocation.
@@ -213,7 +213,7 @@ end
     temperature(gas; h = ...)
 
 The public inversion verb: the temperature [K] at which the gas has
-specific enthalpy `h` [J/kg] (same formation-inclusive datum as
+specific enthalpy `h` `J/kg` (same formation-inclusive datum as
 [`h`](@ref)).
 
 The verb is identical for every gas flavor — `FrozenGas` (plain Newton),

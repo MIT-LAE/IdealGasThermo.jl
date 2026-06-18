@@ -67,7 +67,7 @@ vapor. Specify the humidity as exactly one of
 
   - `SH` — specific humidity ω [kg water / kg dry air], or
   - `RH` — relative humidity [-], converted at temperature `T` [K] and
-    pressure `P` [Pa] (standard day by default) through the legacy
+    pressure `P` `Pa` (standard day by default) through the legacy
     [`saturation_vapor_pressure`](@ref)/[`specific_humidity`](@ref) model
     (August–Roche–Magnus).
 
