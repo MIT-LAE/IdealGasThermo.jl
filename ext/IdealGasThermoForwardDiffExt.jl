@@ -96,6 +96,7 @@ end
         SVector{9,Float64}(value.(gas.alow)),
         SVector{9,Float64}(value.(gas.ahigh)),
         value(gas.MW), value(gas.R), value(gas.Hf),
+        SVector{IdealGasThermo.Nspecies,Float64}(value.(gas.X)),
     )
 end
 

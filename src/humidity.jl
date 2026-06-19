@@ -98,7 +98,5 @@ function humid_air(; SH = nothing, RH = nothing, T = Tstd, P = Pstd)
     X = zeros(Float64, Nspecies)
     Xidict2Array!(Xdict, X) # normalizes
 
-    name = isnothing(SH) ? "Wet air with RH = $RH at ($T K; $(P/1000.0) kPa)" :
-           "Wet air with SH = $ω"
-    return FrozenGas(generate_composite_species(X, name))
+    return FrozenGas(X)
 end  # function humid_air

@@ -17,7 +17,16 @@ terms exactly.
 - **FrozenGas** — the immutable, `isbits` form of a composite species: the
   *pure property core*. Mass-specific (J/kg-based) equivalent coefficients in
   `SVector`s. All property functions of a `FrozenGas` are pure functions of
-  `(gas, T)` — no state, no globals on the hot path, generic over `Real`.
+  `(gas, T)` — no state, no globals on the hot path, generic over `Real`. It is
+  **self-describing**: it also carries its source mole-fraction vector
+  `X::SVector{Nspecies}` (spdict order, Σ = 1), so a gas remembers what it is
+  made of and can be re-mixed ([`mix`](@ref)) or re-burned ([`Vitiator`](@ref))
+  — two lumped gases alone cannot, since the entropy of mixing `−Σ Xᵢ ln Xᵢ` is
+  unrecoverable from the lumped coefficients (ADR-0008). `X` is an immutable
+  constant of the composition, not state — it carries no T or P. All
+  composition→`FrozenGas` construction routes through one zero-allocation kernel
+  (`FrozenGas(X)`) over the shared species table `SPALOW`/`SPAHIGH`/… and the
+  `_lump_molar` lumping function.
 - **Entropy complement (ϕ / s0)** — φ(T) = ∫cp/T dT from the standard state;
   `s(T, P) = ϕ(T) − R·ln(P/Pstd)`. The temperature-only part of entropy.
 - **Enthalpy datum** — enthalpies are **formation-inclusive** (CEA-style):
@@ -25,25 +34,35 @@ terms exactly.
   not zero. Sensible enthalpy from 298.15 K is `h(gas, T) − h(gas, 298.15)`.
 - **Vitiated mixture** — combustion products of a fuel + oxidizer at a given
   **FAR** (fuel–air mass ratio), frozen composition, complete combustion.
-- **Combustor** — a precomputed fuel + oxidizer combustion system: dense
-  per-species `SVector`/`SMatrix` data built once from the species database.
-  The pure, allocation-free replacement for the Dict-based
-  `vitiated_species` path on the hot path.
-- **products** — `products(sys::Combustor, FAR) -> FrozenGas`: the
+- **Vitiator** — a precomputed fuel + oxidizer combustion system, built once
+  from a fuel and an oxidizer; stores **only the reaction stoichiometry**
+  (`Xin`, `ΔX`, `massratio`, `ηburn`) — the NASA-9 lumping uses the shared
+  module-const basis. The pure, allocation-free replacement for the Dict-based
+  `vitiated_species` path on the hot path. Deliberately **not** named
+  `Combustor`: that noun is reserved for the hardware component (pressure drop,
+  efficiency, geometry) one abstraction level up in a cycle deck (ADR-0008).
+  Construction is two methods: a `species` method does the work; the
+  `AbstractString` method resolves the fuel name and forwards.
+- **products** — `products(sys::Vitiator, FAR) -> FrozenGas`: the
   combustion-product gas at a given FAR. Pure, zero-allocation, smooth in
   FAR (ForwardDiff through FAR works; `FrozenGas{TF}` widens its eltype).
-- **Mixer** — a precomputed two-stream mixing system (per-stream
-  mass-fraction `SVector`s + dense species data), built once from two
-  composition-bearing inputs. The pure replacement for the Dict-based
-  composition step of the legacy `gas_mixing`.
-- **mixed** — `mixed(sys::Mixer, mratio) -> FrozenGas`: the merged gas at
-  mass ratio `mratio = mass₂/mass₁`, via the mass-fraction law of mixtures
-  `Y = (Y₁ + mratio·Y₂)/(1 + mratio)` with the entropy of mixing recomputed
-  for the merged composition. Pure, zero-allocation, smooth in `mratio`.
-  `mixed(sys, 0)` is stream 1; stream 2 is the `mratio → ∞` limit. Does
-  *not* do the energy balance (outlet temperature) of legacy `gas_mixing` —
-  that is the caller's job (`temperature(gas, h = ...)` on the
-  mass-weighted enthalpy).
+- **mix** — the merge of two gases, a free function (no precomputed system —
+  each `FrozenGas` already carries its composition `X`); ADR-0008.
+  - `mix(a::FrozenGas, b::FrozenGas, mratio) -> FrozenGas`: the merged
+    *composition* at mass ratio `mratio = mass_b/mass_a`. The merged mole
+    fractions are `X = (n_a·a.X + n_b·b.X)/(n_a + n_b)` with molar amounts
+    `n_a = 1/a.MW`, `n_b = mratio/b.MW` (equivalent to the mass-fraction law of
+    mixtures), and the merged gas is rebuilt from `X` with the entropy of mixing
+    of the *merged* composition. Pure, zero-allocation, smooth in `mratio`.
+    `mix(a, b, 0)` is `a`; `b` is the `mratio → ∞` limit.
+  - `mix(a::GasState, b::GasState, mratio) -> GasState`: the above **plus the
+    energy balance** — the mixed temperature is the mass-averaged total enthalpy
+    `h = (h_a + mratio·h_b)/(1 + mratio)` inverted on the merged gas (the energy
+    balance is *intrinsic* to mixing, not the caller's job). Requires equal
+    stream pressures (an isobaric mixer); a non-isobaric mix needs a **momentum
+    closure**, which — like mass-flow bookkeeping — lives in the flow layer
+    (PowerCycles), not here (ADR-0005). Returns the merged stagnation state.
+  - Replaces the `2.0.0-beta1` `Mixer`/`mixed` pair (deleted, never released).
 - **humid air** — dry air (`Xair`) plus water vapor:
   `humid_air(; SH, RH, T, P) -> FrozenGas`, a constructor (not a hot path)
   taking either the specific humidity ω [kg water/kg dry air] or relative

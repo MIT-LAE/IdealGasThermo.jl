@@ -48,36 +48,21 @@ function generate_composite_species(
     Xi::AbstractVector,
     name::AbstractString = "composite species",
 )
-    ALOW = reduce(hcat, spdict.alow)
-    AHIGH = reduce(hcat, spdict.ahigh)
-    alow = ALOW * Xi
-    ahigh = AHIGH * Xi
-    MW = dot(spdict.MW, Xi)
-    Hf = dot(spdict.Hf, Xi)
-    # Need to account for the entropy of mixing:
-    Δs_mix = 0.0
-    for i in eachindex(Xi)
-        if Xi[i] != 0.0
-            Δs_mix = Δs_mix + Xi[i] * log(Xi[i])
-        end
-    end
-    # This is independent of temperature represented by the constant of integration:
-    alow[end] = alow[end] - Δs_mix
-    ahigh[end] = ahigh[end] - Δs_mix
-    Tmid = 1000.0 #Assumed to always be the mid (this is checked for all input thermo when read)
-    # comp
-    d = Dict()
     if !(sum(Xi) ≈ 1.0)
         error("Gas mixture composition is not well defined. Sum of Xi = $(sum(Xi)) != 1.0")
     end
     if any(Xi .< 0.0)
         error("Composition has negative values.")
     end
+    # Equivalent molar coefficients (entropy of mixing folded into b₂) via the
+    # shared lumping kernel — same `A * X` over the species basis used by the
+    # pure-core constructors. Tmid is always 1000 K (checked at read time).
+    alow, ahigh, MW, Hf = _lump_molar(Xi)
+    d = Dict{String,Float64}()
     for i in eachindex(Xi)
-        if (Xi[i] != 0)
+        if Xi[i] != 0
             push!(d, spdict.name[i] => Xi[i])
         end
     end
-    return composite_species(name, Tmid, alow, ahigh, MW, Hf, d)
-
+    return composite_species(name, 1000.0, Vector(alow), Vector(ahigh), MW, Hf, d)
 end  # function generate_composite_species

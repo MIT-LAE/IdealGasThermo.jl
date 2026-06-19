@@ -130,7 +130,7 @@ end  # function Xidict2ArrayXdict
 # `Xair` but keeps the database MW, exactly mirroring
 # `vitiated_mixture`/`fixed_fuel_vitiated_species`), a mole-fraction
 # `Dict{String,Float64}`, or a mole-fraction vector ordered as `spdict`.
-# Shared by `Combustor` (oxidizer resolution) and `Mixer` (stream resolution).
+# Used by `Vitiator` to resolve its oxidizer to mole fractions.
 function _X_MW(input::composite_species)
     X = Xidict2Array(input.composition)
     return X ./ sum(X), input.MW

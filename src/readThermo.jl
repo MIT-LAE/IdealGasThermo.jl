@@ -80,3 +80,40 @@ const spdict = readThermo(default_thermo_path)
 const Nspecies = length(spdict)
 
 species_in_spdict(name::AbstractString) = spdict[findfirst(x -> x == name, spdict.name)]
+
+# Dense static-array repacking of the species database, so equivalent mixture
+# coefficients can be formed by `A * X` (X = mole-fraction vector in spdict
+# order). This is the SINGLE home for what was previously rebuilt on every
+# `generate_composite_species` call and copied into each combustion/mixing
+# system's own struct.
+const SPALOW = SMatrix{9,Nspecies,Float64}(reduce(hcat, spdict.alow))
+const SPAHIGH = SMatrix{9,Nspecies,Float64}(reduce(hcat, spdict.ahigh))
+const SPMW = SVector{Nspecies,Float64}(spdict.MW)
+const SPHF = SVector{Nspecies,Float64}(spdict.Hf)
+
+
+ """
+    _lump_molar(X)
+
+Equivalent *molar* NASA-9 coefficients of a mole-fraction mixture `X`
+(spdict order, Σ = 1), with the entropy of mixing −Σ Xᵢ ln Xᵢ folded into the
+integration constant b₂ (index 9). The lumping kernel is used in 
+`generate_composite_species`, `FrozenGas`, `products`, and `mix`. Zero
+allocation for an `SVector` argument and generic over `eltype(X)` 
+    
+(Dual-safe: the `iszero` branch only ever skips structural zeros).
+"""
+@inline function _lump_molar(X)
+    alow = SPALOW * X
+    ahigh = SPAHIGH * X
+    MW = dot(SPMW, X)
+    Hf = dot(SPHF, X)
+    Δs_mix = zero(eltype(X))
+    @inbounds for i in eachindex(X)
+        Xi = X[i]
+        iszero(Xi) || (Δs_mix += Xi * log(Xi))
+    end
+    alow = Base.setindex(alow, alow[9] - Δs_mix, 9) #Have to use Base.setindex to change a single entry of an SVector
+    ahigh = Base.setindex(ahigh, ahigh[9] - Δs_mix, 9)
+    return alow, ahigh, MW, Hf
+end
