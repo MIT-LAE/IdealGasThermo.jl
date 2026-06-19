@@ -28,33 +28,52 @@ itself carries derivative information, as in [`products`](@ref)
 differentiated with respect to FAR.
 """
 struct FrozenGas{TF<:Real}
-    alow::SVector{9,TF}  # mass-scaled coefficients, T < Tmid (1000 K)
-    ahigh::SVector{9,TF} # mass-scaled coefficients, T ≥ Tmid
-    MW::TF               # molecular weight [g/mol]
-    R::TF                # specific gas constant [J/kg/K]
-    Hf::TF               # formation enthalpy at 298.15 K [J/mol]
-end
-
-function FrozenGas(sp::AbstractSpecies)
-    scale = 1000.0 / sp.MW # molar (J/mol) → mass-specific (J/kg)
-    FrozenGas(
-        SVector{9,Float64}(sp.alow) * scale,
-        SVector{9,Float64}(sp.ahigh) * scale,
-        sp.MW,
-        Runiv / sp.MW * 1000.0,
-        sp.Hf,
-    )
+    alow::SVector{9,TF}             # mass-scaled coefficients, T < Tmid (1000 K)
+    ahigh::SVector{9,TF}            # mass-scaled coefficients, T ≥ Tmid
+    MW::TF                          # molecular weight [g/mol]
+    R::TF                           # specific gas constant [J/kg/K]
+    Hf::TF                          # formation enthalpy at 298.15 K [J/mol]
+    X::SVector{Nspecies,TF}         # source mole fractions (spdict order, Σ = 1)
 end
 
 """
-    FrozenGas(X::AbstractVector, name::AbstractString="frozen gas")
+    FrozenGas(X::AbstractVector)
 
-Construct from mole fractions `X` ordered as the species database
-(`spdict`); `X` must sum to 1. Consults the database once, here — property
-calls never do.
+Construct from mole fractions `X` ordered as the species database (`spdict`);
+`X` is normalized to sum 1. Consults the database once, here — property calls
+never do. The composition is retained (`gas.X`), so the gas can be re-mixed
+([`mix`](@ref)) or re-burned ([`Vitiator`](@ref)).
 """
 FrozenGas(X::AbstractVector, name::AbstractString = "frozen gas") =
-    FrozenGas(generate_composite_species(X, name))
+    FrozenGas(SVector{Nspecies,Float64}(X ./ sum(X)))
+
+# The zero-allocation kernel: a normalized mole-fraction SVector → FrozenGas.
+# Every other construction path resolves to a composition vector and lands here.
+function FrozenGas(X::SVector{Nspecies,TF}) where {TF<:Real}
+    alow, ahigh, MW, Hf = _lump_molar(X)
+    scale = 1000 / MW # molar (J/mol) → mass-specific (J/kg)
+    FrozenGas(alow * scale, ahigh * scale, MW, 1000 * Runiv / MW, Hf, X)
+end
+
+"""
+    FrozenGas(sp::AbstractSpecies)
+
+Construct from a database [`species`](@ref) or a [`composite_species`](@ref).
+"""
+FrozenGas(sp::AbstractSpecies) = FrozenGas(_composition_vector(sp))
+
+# Mole-fraction vector (spdict order) for the `X` field. A composite uses its
+# stored composition; a database species is 100% itself (its own column of the
+# basis — so `FrozenGas(species("Air"))` is the fitted Air pseudo-species, not
+# the dry-air breakdown; `_X_MW`'s "Air"→Xair remap is deliberately not used).
+_composition_vector(sp::composite_species) =
+    (X = SVector{Nspecies,Float64}(Xidict2Array(sp.composition)); X ./ sum(X))
+function _composition_vector(sp::species)
+    i = findfirst(==(sp.name), spdict.name)
+    i === nothing &&
+        error("species $(sp.name) is not in the database; cannot express its composition")
+    Base.setindex(zero(SVector{Nspecies,Float64}), 1.0, i)
+end
 
 """
     R(gas::FrozenGas)

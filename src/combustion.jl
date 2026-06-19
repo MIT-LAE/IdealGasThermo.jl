@@ -25,79 +25,9 @@ julia> IdealGasThermo.fuelbreakdown("CH3CH2OH")'
 
 ```
 """
-function fuelbreakdown(fuel::String)
-    C, H, O, N = 0.0, 0.0, 0.0, 0.0
-    if !isempty(findall(r"[^cChHoOnN.^[0-9]", fuel))
-        try
-            fuel = species_in_spdict(fuel).formula
-        catch e
-            if isa(e, ArgumentError)
-                error("""The input fuel string $fuel is not found in 
-                the thermo database and contains
-                elements other than C,H,O, and N.\n""")
-            end
-        end
-    end
-    chunks = [fuel[idx] for idx in findall(r"[a-zA-Z][a-z]?\d*\.?\d*", fuel)]
-    for chunk in chunks
-        element, number = match(r"([a-zA-Z][a-z]?)(\d*\.?\d*)", chunk).captures
-        element = uppercase(element)
-        if isempty(number)
-            number = 1
-        else
-            number = parse(Float64, number)
-        end
-        if element == "C"
-            C = C + number
-        elseif element == "H"
-            H = H + number
-        elseif element == "O"
-            O = O + number
-        elseif element == "N"
-            N = N + number
-        else
-            error("Fuel can only contain C, H, O or N atoms!")
-        end
-    end
-    return ([C, H, O, N])
-
-end
-
-fuelbreakdown(fuel::species) = fuelbreakdown(fuel.formula)
-
-"""
-    reaction_change_molar_fraction(fuel::AbstractString)
-
-Returns the mole fraction change due to complete combustion of one mole of
-the specified fuel
-
-Assume fuel of type  CᵢHⱼOₖNₗ , then
-```
-    CᵢHⱼOₖNₗ + n(O2) * O2 ---> n(CO2)*CO2 + n(H2O)*H2O + n(N2)*N2
-   ⟹CᵢHⱼOₖNₗ              ---> n(CO2)*CO2 + n(H2O)*H2O + n(N2)*N2 - n(O2)*O2 
-```
-
-# Examples
-```julia-repl
-julia> IdealGasThermo.reaction_change_molar_fraction("CH4")
-4-element Vector{Float64}:
-  1.0
-  0.0
-  2.0
- -2.0
-```
-"""
-function reaction_change_molar_fraction(fuel::AbstractString)
-    CHON = fuelbreakdown(fuel) # Returns number of C, H, O, and N atoms in fuel
-    # Calculate the number of moles of products + O₂
-    nCO2 = CHON[1] * 1.0
-    nN2 = CHON[4] / 2
-    nH2O = CHON[2] / 2
-    nO2 = -(CHON[1] + CHON[2] / 4 - CHON[3] / 2) # Oxygen is used up/ lost
-
-    X = [nCO2, nN2, nH2O, nO2]
-    return X
-end  # function reaction_change_molar_fraction
+# NOTE: `fuelbreakdown` and `reaction_change_molar_fraction` were re-homed to
+# `vitiator.jl` (they are pure functions reachable from the pure-core
+# `Vitiator`); the legacy functions below still call them.
 
 """
     stoich_molar_fuel_oxy_ratio(fuel::AbstractString)

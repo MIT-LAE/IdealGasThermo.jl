@@ -1,9 +1,9 @@
 using ForwardDiff
 
-@testset "Combustor products" begin
+@testset "Vitiator products" begin
 
     @testset "FAR = 0 reproduces the oxidizer" begin
-        sys = Combustor("CH4", DryAir)
+        sys = Vitiator("CH4", DryAir)
         air = FrozenGas(DryAir)
         gas0 = products(sys, 0.0)
         @test gas0 isa FrozenGas
@@ -15,7 +15,7 @@ using ForwardDiff
     end
 
     @testset "zero allocations after warmup" begin
-        sys = Combustor("CH4", "Air")
+        sys = Vitiator("CH4", "Air")
         @test (@ballocated products($sys, 0.03) samples = 1 evals = 1) == 0
         # composed with a property read, still allocation-free
         h_at(sys, FAR, T) = IdealGasThermo.h(products(sys, FAR), T)
@@ -23,7 +23,7 @@ using ForwardDiff
     end
 
     @testset "FAR-differentiability" begin
-        sys = Combustor("CH4", "Air")
+        sys = Vitiator("CH4", "Air")
         D = ForwardDiff.derivative
         h_at(far) = IdealGasThermo.h(products(sys, far), 1600.0)
         far = 0.03
@@ -40,8 +40,8 @@ using ForwardDiff
         # two gases must have measurably different properties. (Self-contained;
         # no comparison to the legacy vitiated_species path.)
         FAR = 0.03
-        full = products(Combustor("CH4", "Air"; ηburn = 1.0), FAR)
-        partial = products(Combustor("CH4", "Air"; ηburn = 0.9), FAR)
+        full = products(Vitiator("CH4", "Air"; ηburn = 1.0), FAR)
+        partial = products(Vitiator("CH4", "Air"; ηburn = 0.9), FAR)
         # the compositions differ ⟹ cp differs by well over numerical noise
         @test !isapprox(IdealGasThermo.cp(partial, 1600.0),
                         IdealGasThermo.cp(full, 1600.0); rtol = 1e-3)
@@ -49,7 +49,7 @@ using ForwardDiff
         # collapse to the pure oxidizer regardless of ηburn
         air = FrozenGas(DryAir)
         for ηburn in (0.9, 1.0)
-            gas0 = products(Combustor("CH4", DryAir; ηburn = ηburn), 0.0)
+            gas0 = products(Vitiator("CH4", DryAir; ηburn = ηburn), 0.0)
             @test IdealGasThermo.cp(gas0, 1600.0) ≈ IdealGasThermo.cp(air, 1600.0) rtol = 1e-10
         end
     end

@@ -12,8 +12,8 @@ using ForwardDiff
     uni(a, b) = a + (b - a) * rand(rng) #uniform random between a and b
 
     air = FrozenGas(DryAir)
-    sysCH4 = Combustor("CH4", DryAir)
-    sysJet = Combustor("Jet-A(g)", DryAir)
+    sysCH4 = Vitiator("CH4", DryAir)
+    sysJet = Vitiator("Jet-A(g)", DryAir)
     vit = IdealGasThermo.vitiated_species("CH4", "Air", 0.04)
 
     # a small pool of randomly-parameterized gases spanning what the
@@ -22,7 +22,7 @@ using ForwardDiff
         air,
         products(sysCH4, uni(0.005, 0.05)),
         products(sysJet, uni(0.005, 0.045)),
-        mixed(Mixer(DryAir, vit), uni(0.1, 10.0)),
+        mix(FrozenGas(DryAir), FrozenGas(vit), uni(0.1, 10.0)),
         humid_air(SH = uni(0.001, 0.05)),
     ]
 
@@ -105,12 +105,12 @@ using ForwardDiff
     end
 
     @testset "mixing algebra: symmetry and self-identity" begin
-        mAB = Mixer(DryAir, vit)
-        mBA = Mixer(vit, DryAir)
+        gA = FrozenGas(DryAir)
+        gB = FrozenGas(vit)
         for _ = 1:4
             m = uni(0.1, 10.0)
-            g1 = mixed(mAB, m)      # m kg of vit per kg of air
-            g2 = mixed(mBA, 1 / m)  # the same mixture, described from the other side
+            g1 = mix(gA, gB, m)      # m kg of vit per kg of air
+            g2 = mix(gB, gA, 1 / m)  # the same mixture, described from the other side
             @test g1.MW ≈ g2.MW rtol = 1e-12
             for T in (300.0, 1600.0)
                 @test IdealGasThermo.cp(g1, T) ≈ IdealGasThermo.cp(g2, T) rtol = 1e-12
@@ -119,9 +119,8 @@ using ForwardDiff
             end
         end
         # mixing a gas with itself is the identity, at any ratio
-        mAA = Mixer(DryAir, DryAir)
         for m in (0.0, uni(0.1, 10.0), 1.0e6)
-            g = mixed(mAA, m)
+            g = mix(gA, gA, m)
             @test IdealGasThermo.cp(g, 600.0) ≈ IdealGasThermo.cp(air, 600.0) rtol = 1e-12
             @test IdealGasThermo.s0(g, 600.0) ≈ IdealGasThermo.s0(air, 600.0) rtol = 1e-12
         end
@@ -200,7 +199,7 @@ using ForwardDiff
         δ = 1e-6
         fdcheck(f, x) = (f(x + δ) - f(x - δ)) / (2δ)
         for fuel in ["CH4", "H2", "Jet-A(g)"]   # distinct C/H/O ⟹ distinct ∂X/∂FAR
-            sys = Combustor(fuel, DryAir)
+            sys = Vitiator(fuel, DryAir)
             fsp = species_in_spdict(fuel)
             hF = 1000 * fsp.Hf / fsp.MW
             # Stay sub-stoichiometric for the leanest-ceiling fuel in the pool

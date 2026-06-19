@@ -37,5 +37,5 @@ Pages = ["flow.jl"]
 
 ```@autodocs
 Modules = [IdealGasThermo]
-Pages = ["combustor.jl", "mixer.jl", "humidity.jl"]
+Pages = ["vitiator.jl", "mix.jl", "humidity.jl"]
 ```

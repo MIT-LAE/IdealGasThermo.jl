@@ -25,6 +25,13 @@ and does `FrozenGas` take over the name `Gas`?
    cover those jobs (`products(sys, FAR)`, frozen-gas mixing, humid-air
    construction). Once that layer lands, `Gas{N}` is demoted to an
    unexported interactive convenience or deprecated in turn.
+
+   > **Update (ADR-0008, 2026-06-19):** that condition is now met. The
+   > pure constructors cover all three jobs (`Combustor`/`products`,
+   > `mix`, `humid_air`), and the composition-workspace role is served by
+   > the immutable `FrozenGas.X` (a mole-fraction `SVector` the gas now
+   > carries). `Gas{N}` therefore retires **together with `Gas1D`**; the
+   > deletion itself is the ADR-0007 v2.0-final step.
 3. **The name `FrozenGas` is permanent. It does not become `Gas` in v2.0.**
    Rationale: (a) recycling a name across a semantics flip
    (mutable → immutable) makes every pre-2.0 snippet, notebook, and doc

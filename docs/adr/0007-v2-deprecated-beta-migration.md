@@ -70,6 +70,30 @@ Retire the legacy layer in **two phases**, separated by a migration window:
    functions (`stoich_molar_FOR`, `vitiated_mixture`) are legacy-only and their tests
    die correctly with the layer.
 
+> **Update (ADR-0008, 2026-06-19).** Two refinements to the deletion plan:
+> - **`reaction_change_molar_fraction` and `fuelbreakdown` are already
+>   re-homed** out of `combustion.jl` into the pure `vitiator.jl` (they are
+>   pure functions reachable from the `Vitiator` constructor — the type
+>   formerly named `Combustor`; see ADR-0008 §7). The legacy
+>   functions in `combustion.jl` still call them; nothing in the pure core
+>   reaches into a legacy file any more. Their component-value test still
+>   needs re-homing before `unit_test_vitiated.jl` is deleted.
+> - **`Gas{N}` retires together with `Gas1D`** (ADR-0008 closes ADR-0002 §2).
+>   A read-only audit (2026-06-19) confirmed the pure core is fully cut free
+>   of `Gas`/`Gas1D` and enumerated the full legacy-only deletion set, which
+>   is larger than this ADR first listed: in `turbo.jl` —
+>   `PressureRatio`, `gas_Mach!`, `gas_mixing`, and the `::AbstractGas`
+>   methods of `compress`/`expand`; the whole of `thermoProps.jl`
+>   (`Cp`/`dCpdT`/`𝜙`/the species-level `h`/`s`); in `utils.jl` —
+>   `Tarray`/`Tarray!` and both `thermo_table` methods; in `io.jl` — the
+>   `Gas`/`Gas1D` `show`/`print`/`composition` methods; and
+>   `deprecation.jl` (`_legacy_warn`). The pure-reachable helpers that must
+>   **survive** in their current (surviving) files are `generate_composite_species`
+>   (species.jl), `_X_MW`/`Xidict2Array`/`Xidict2Array!` (utils.jl),
+>   `species_in_spdict` (readThermo.jl), and now `reaction_change_molar_fraction`
+>   /`fuelbreakdown` (vitiator.jl). `X2Y`/`Y2X` are exported but have no pure
+>   caller; decide whether to keep them as public API or drop them at deletion.
+
 PowerCycles.jl pins to a published `2.0.0-betaN` tag on
 `github.com/MIT-LAE/IdealGasThermo.jl`
 (`Pkg.add(url = "https://github.com/MIT-LAE/IdealGasThermo.jl", rev = "v2.0.0-beta1")`;

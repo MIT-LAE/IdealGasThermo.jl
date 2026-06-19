@@ -151,4 +151,28 @@ using ForwardDiff
         end
     end
 
+    @testset "carries its source composition (X)" begin
+        air = FrozenGas(DryAir)
+        @test air.X isa AbstractVector
+        @test length(air.X) == IdealGasThermo.Nspecies
+        @test sum(air.X) ≈ 1.0
+        Xair = IdealGasThermo.Xidict2Array(DryAir.composition)
+        @test air.X ≈ Xair ./ sum(Xair) rtol = 1e-12
+
+        # a database species is 100% itself (its own basis column)
+        co2 = FrozenGas(species_in_spdict("CO2"))
+        i = findfirst(==("CO2"), IdealGasThermo.spdict.name)
+        @test co2.X[i] ≈ 1.0
+        @test sum(co2.X) ≈ 1.0
+
+        # rebuilding a gas from its own X reproduces it exactly
+        rebuilt = FrozenGas(air.X)
+        @test rebuilt.X ≈ air.X
+        @test IdealGasThermo.cp(rebuilt, 800.0) ≈ IdealGasThermo.cp(air, 800.0) rtol = 1e-14
+
+        # FAR-carrying products expose the (Dual-valued) composition too
+        p = products(Vitiator("CH4", DryAir), 0.03)
+        @test sum(p.X) ≈ 1.0
+    end
+
 end
