@@ -12,7 +12,18 @@ requirejs.config({
     'highlight-julia-repl': 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/julia-repl.min',
   },
   shim: {
+  "headroom-jquery": {
+    "deps": [
+      "jquery",
+      "headroom"
+    ]
+  },
   "highlight-julia": {
+    "deps": [
+      "highlight"
+    ]
+  },
+  "highlight-julia-repl": {
     "deps": [
       "highlight"
     ]
@@ -20,17 +31,6 @@ requirejs.config({
   "katex-auto-render": {
     "deps": [
       "katex"
-    ]
-  },
-  "headroom-jquery": {
-    "deps": [
-      "jquery",
-      "headroom"
-    ]
-  },
-  "highlight-julia-repl": {
-    "deps": [
-      "highlight"
     ]
   }
 }});
@@ -42,37 +42,37 @@ $(document).ready(function() {
     {
   "delimiters": [
     {
+      "display": false,
       "left": "$",
-      "right": "$",
-      "display": false
+      "right": "$"
     },
     {
+      "display": true,
       "left": "$$",
-      "right": "$$",
-      "display": true
+      "right": "$$"
     },
     {
+      "display": true,
       "left": "\\[",
-      "right": "\\]",
-      "display": true
+      "right": "\\]"
     }
   ],
   "macros": {
-    "\\Ru": "R_{\\mathrm{univ.}}",
-    "\\shatR": "\\frac{\\hat{s}^\\circ(T)}{\\Ru}",
-    "\\sbarR": "\\overline{\\frac{\\hat{s}^\\circ(T)}{\\Ru}}",
+    "\\Pstd": "P_{\\mathrm{std}}",
     "\\RR": "\\mathbb{R}",
-    "\\genfuel": "{\\mathrm{C}_{x_{\\mathrm{C}}}\\mathrm{H}_{x_{\\mathrm{H}}}\\mathrm{O}_{x_{\\mathrm{O}}}\\mathrm{N}_{x_{\\mathrm{N}}}}",
-    "\\hhatRT": "\\frac{\\hat{h}^\\circ (T)}{\\Ru T}",
+    "\\Ru": "R_{\\mathrm{univ.}}",
     "\\Tstd": "T_{\\mathrm{std}}",
     "\\Xi": "X_{i}",
-    "\\Pstd": "P_{\\mathrm{std}}",
-    "\\hbarRT": "\\overline{\\frac{\\hat{h}^\\circ (T)}{\\Ru T}}",
+    "\\cpbarR": "\\overline{\\frac{\\hat{c}_p^\\circ(T)}{\\Ru}}",
     "\\cphatR": "\\frac{\\hat{c}_p^\\circ(T)}{\\Ru}",
     "\\fst": "f_{\\mathrm{stoich.}}",
-    "\\cpbarR": "\\overline{\\frac{\\hat{c}_p^\\circ(T)}{\\Ru}}",
+    "\\genfuel": "{\\mathrm{C}_{x_{\\mathrm{C}}}\\mathrm{H}_{x_{\\mathrm{H}}}\\mathrm{O}_{x_{\\mathrm{O}}}\\mathrm{N}_{x_{\\mathrm{N}}}}",
+    "\\hbarRT": "\\overline{\\frac{\\hat{h}^\\circ (T)}{\\Ru T}}",
+    "\\hhatRT": "\\frac{\\hat{h}^\\circ (T)}{\\Ru T}",
     "\\phibarR": "\\overline{\\frac{\\hat{\\phi}^\\circ(T)}{\\Ru}}",
-    "\\phihatR": "\\frac{\\hat{\\phi}^\\circ(T)}{\\Ru}"
+    "\\phihatR": "\\frac{\\hat{\\phi}^\\circ(T)}{\\Ru}",
+    "\\sbarR": "\\overline{\\frac{\\hat{s}^\\circ(T)}{\\Ru}}",
+    "\\shatR": "\\frac{\\hat{s}^\\circ(T)}{\\Ru}"
   }
 }
   );
