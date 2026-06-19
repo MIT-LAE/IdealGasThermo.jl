@@ -69,14 +69,19 @@ terms exactly.
   humidity converted via the legacy August–Roche–Magnus
   `saturation_vapor_pressure`. Same composition logic as the legacy
   `generate_humid_air` (water at `ω/ε` moles per mole dry air, renormalized).
-- **temperature (the inversion verb)** — solving a property relation
-  backwards for temperature: `temperature(gas, h = ...)` (given enthalpy).
-  One verb for every gas flavor — the *type* selects the algorithm and
-  tier, never the function name. (Internal positional engines
-  `T_of_h`/`T_isentropic` are unexported.) The former isentrope form
-  (`T1 = ..., PR = ...; ηp`) is removed (ADR-0004): a polytropic change of
-  state is a *process*, not an inversion — use the process verbs
-  `compress`/`expand`.
+- **T_from_h (the inversion verb)** — solving a property relation backwards
+  for temperature: `T_from_h(gas, hspec)` (the inverse of `h(gas, T)`). One
+  verb for every gas flavor — the *type* selects the algorithm and tier
+  (`FrozenGas` Newton, `FastFrozenGas{:seeded}`/`{:fast}`), never the function
+  name. Named in the direction of the computation (`T_from_h`); an analogous
+  `T_from_s0` would invert entropy. Replaces the former `temperature(gas; h)`
+  keyword facade (removed, ADR-0004 update): keyword args don't participate in
+  Julia dispatch, so a clean inversion is an explicitly-named function, not a
+  `nothing`-checking facade. The isentrope form was never an inversion at all —
+  a polytropic change of state is a *process*, expressed by `compress`/`expand`.
+  The internal isentropic/polytropic temperature engine is **`_T_polytropic`**
+  (unexported; renamed from the misleading `T_isentropic`, which claimed
+  isentropic even with `ηp ≠ 1`).
 - **process verbs** — the three-process taxonomy on the pure core
   (ADR-0004), each pure and allocation-free, each with the direction in
   the verb, never in the number:
@@ -167,8 +172,10 @@ terms exactly.
   the no-dissociation contract).
 - **Exported property API.** The pure-core accessors are exported for
   unqualified use by consumers (e.g. PowerCycles): `cₚ`/`c_p`, `h`, `s0`,
-  `gamma`/`γ`, `R`, `T_of_h`, `T_isentropic`, `pressure_ratio` (plus `props`,
-  `temperature`, `entropy`, `density`, `speed_of_sound`). Specific heat is
+  `gamma`/`γ`, `R`, `T_from_h`, `pressure_ratio` (plus `props`,
+  `entropy`, `density`, `speed_of_sound`). The isentropic/polytropic engine
+  `_T_polytropic` is **un**exported (the public process API is `compress`/
+  `expand`), and the old `temperature` keyword facade is gone. Specific heat is
   exported as **`cₚ` and `c_p`** — interchangeable aliases (`const cₚ = cp`,
   `const c_p = cp`) of the internal function `cp`, which is *not* exported
   because the bare name collides with `Base.cp` (file copy). `cp` stays usable
@@ -188,14 +195,14 @@ terms exactly.
   Dual-carrying gas are intrinsically cheap because every property is **linear
   in the coefficients** (the lone nonlinearity, `log T`, rides the temperature
   rail), so the tangent propagates by scale-and-add with no transcendentals.
-  The inversions (`temperature`/`T_of_h`, `T_isentropic`) need the **full
+  The inversions (`T_from_h`, `_T_polytropic`) need the **full
   three-term IFT rule**: the constant-substance rules account only for the
   *target* moving and silently drop the *composition moves* term, which when
   the gas is Dual-typed produces a nested-Dual result instead of a number. The
   extension's substance-Dual rules dispatch on `FrozenGas{<:Dual}` and add that
   term —
   `∂T = (partials(h_spec) − partials(h(gas, T*))) / cp(gas₀, T*)` for
-  `T_of_h` — while keeping the Newton loop on the value rail (strip all
+  `T_from_h` — while keeping the Newton loop on the value rail (strip all
   tangents, solve once in `Float64`, attach the closed-form tangent at `T*`
   via one forward evaluation). This preserves the split-rule speed: the
   substance-Dual inversion is ~36× faster than differentiating through the

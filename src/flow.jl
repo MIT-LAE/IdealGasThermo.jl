@@ -48,7 +48,7 @@ function stagnation_state(st::GasState, M)
         throw(ArgumentError("stagnation_state: Mach number must be ≥ 0 (got M = $M)"))
     gas = st.gas
     V = M * speed_of_sound(gas, st.T)
-    Tt = T_of_h(gas, h(gas, st.T) + V^2 / 2)
+    Tt = T_from_h(gas, h(gas, st.T) + V^2 / 2)
     Pt = st.P * exp((s0(gas, Tt) - s0(gas, st.T)) / R(gas))
     GasState(gas, Tt, Pt)
 end

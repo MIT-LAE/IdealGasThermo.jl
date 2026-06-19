@@ -104,8 +104,8 @@ using ForwardDiff
         @test D(T -> speed_of_sound(air, T), T0) ≈
               (speed_of_sound(air, T0 + 1e-3) - speed_of_sound(air, T0 - 1e-3)) / 2e-3 rtol = 1e-6
         # ∂Tt/∂M of stagnation at fixed static state:
-        #   Tt = T_of_h(h(Ts) + ½M²a²),  a² = γ(Ts)·R·Ts
-        #   ⇒ dTt/dM = M·a² / cp(Tt)   (IFT for T_of_h)
+        #   Tt = T_from_h(h(Ts) + ½M²a²),  a² = γ(Ts)·R·Ts
+        #   ⇒ dTt/dM = M·a² / cp(Tt)   (IFT for T_from_h)
         M = 0.8
         a2 = IdealGasThermo.gamma(air, st.T) * IdealGasThermo.R(air) * st.T
         Tt = stagnation_state(st, M).T

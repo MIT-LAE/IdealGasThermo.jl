@@ -29,7 +29,7 @@ include("utils.jl")
 export X2Y, Y2X
 include("thermoProps.jl")
 include("frozengas.jl")
-export FrozenGas, props, temperature
+export FrozenGas, props
 # Pure-core property accessors. The standalone `cp` function collides with
 # `Base.cp` (file copy), so it is deliberately NOT exported; `cₚ` and `c_p` are
 # exported aliases of the same function (same methods, including the
@@ -42,7 +42,7 @@ const c_p = cp
 # `γ` is an exported Unicode alias of `gamma` (ratio of specific heats); unlike
 # `cp`, the ASCII `gamma` does not collide with Base, so both names are exported.
 const γ = gamma
-export cₚ, c_p, h, s0, gamma, γ, R, T_of_h, T_isentropic, pressure_ratio
+export cₚ, c_p, h, s0, gamma, γ, R, T_from_h, pressure_ratio
 include("fastfrozengas.jl")
 export FastFrozenGas
 include("gasstate.jl")

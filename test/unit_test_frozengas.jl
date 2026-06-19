@@ -60,23 +60,26 @@ using ForwardDiff
         @test c_p === IdealGasThermo.cp
         @test γ === gamma                       # Unicode alias of gamma
         # all property names appear in the public export list
-        @test issubset([:cₚ, :c_p, :h, :s0, :gamma, :γ, :R, :T_of_h, :T_isentropic, :pressure_ratio], names(IdealGasThermo))
+        @test issubset([:cₚ, :c_p, :h, :s0, :gamma, :γ, :R, :T_from_h, :pressure_ratio], names(IdealGasThermo))
+        # _T_polytropic is the internal isentropic/polytropic engine — NOT exported
+        # (the public process API is compress/expand); confirm it stays private
+        @test :_T_polytropic ∉ names(IdealGasThermo)
     end
 
-    @testset "T_of_h inversion" begin
+    @testset "T_from_h inversion" begin
         air = FrozenGas(DryAir)
         for T in [250.0, 500.0, 999.5, 1000.5, 1600.0, 2200.0]
-            @test IdealGasThermo.T_of_h(air, IdealGasThermo.h(air, T)) ≈ T rtol = 1e-10
+            @test IdealGasThermo.T_from_h(air, IdealGasThermo.h(air, T)) ≈ T rtol = 1e-10
         end
     end
 
     @testset "isentropic relations" begin
         air = FrozenGas(DryAir)
         # identity: no pressure change, no temperature change
-        @test IdealGasThermo.T_isentropic(air, 500.0, 1.0) ≈ 500.0 rtol = 1e-12
+        @test IdealGasThermo._T_polytropic(air, 500.0, 1.0) ≈ 500.0 rtol = 1e-12
         # round trip: s0(T2) = s0(T1) + R ln(PR)  ⟺  pressure_ratio inverts it
         for (T1, PR) in [(288.15, 12.0), (500.0, 30.0), (1600.0, 0.25), (900.0, 1.05)]
-            T2 = IdealGasThermo.T_isentropic(air, T1, PR)
+            T2 = IdealGasThermo._T_polytropic(air, T1, PR)
             @test IdealGasThermo.pressure_ratio(air, T1, T2) ≈ PR rtol = 1e-10
         end
     end
@@ -88,8 +91,8 @@ using ForwardDiff
         @test (@ballocated IdealGasThermo.s0($air, 600.0) samples = 1 evals = 1) == 0
         @test (@ballocated IdealGasThermo.gamma($air, 600.0) samples = 1 evals = 1) == 0
         @test (@ballocated props($air, 600.0) samples = 1 evals = 1) == 0
-        @test (@ballocated IdealGasThermo.T_of_h($air, 5e5) samples = 1 evals = 1) == 0
-        @test (@ballocated IdealGasThermo.T_isentropic($air, 288.15, 12.0) samples = 1 evals = 1) == 0
+        @test (@ballocated IdealGasThermo.T_from_h($air, 5e5) samples = 1 evals = 1) == 0
+        @test (@ballocated IdealGasThermo._T_polytropic($air, 288.15, 12.0) samples = 1 evals = 1) == 0
         @test (@ballocated IdealGasThermo.pressure_ratio($air, 288.15, 600.0) samples = 1 evals = 1) == 0
     end
 
@@ -111,16 +114,16 @@ using ForwardDiff
         # inversion derivatives via implicit function theorem: dT/dh = 1/cp
         for T in [400.0, 1500.0]
             hT = IdealGasThermo.h(air, T)
-            @test D(hh -> IdealGasThermo.T_of_h(air, hh), hT) ≈
+            @test D(hh -> IdealGasThermo.T_from_h(air, hh), hT) ≈
                   1 / IdealGasThermo.cp(air, T) rtol = 1e-10
         end
-        # T_isentropic: ∂T2/∂PR = R·T2 / (ηp·PR·cp(T2)) from s0(T2) = s0(T1) + R ln(PR)/ηp
+        # _T_polytropic: ∂T2/∂PR = R·T2 / (ηp·PR·cp(T2)) from s0(T2) = s0(T1) + R ln(PR)/ηp
         T1, PR = 288.15, 12.0
-        T2 = IdealGasThermo.T_isentropic(air, T1, PR)
-        @test D(pr -> IdealGasThermo.T_isentropic(air, T1, pr), PR) ≈
+        T2 = IdealGasThermo._T_polytropic(air, T1, PR)
+        @test D(pr -> IdealGasThermo._T_polytropic(air, T1, pr), PR) ≈
               air.R * T2 / (PR * IdealGasThermo.cp(air, T2)) rtol = 1e-10
         # ∂T2/∂T1 = cp(T1)·T2 / (cp(T2)·T1)
-        @test D(t1 -> IdealGasThermo.T_isentropic(air, t1, PR), T1) ≈
+        @test D(t1 -> IdealGasThermo._T_polytropic(air, t1, PR), T1) ≈
               IdealGasThermo.cp(air, T1) * T2 / (IdealGasThermo.cp(air, T2) * T1) rtol = 1e-10
     end
 
@@ -132,8 +135,8 @@ using ForwardDiff
         # Dual-typed evaluation stays allocation-free through the rules
         @test (@ballocated $D(t -> IdealGasThermo.h($air, t), 600.0) samples = 1 evals = 1) == 0
         @test (@ballocated $D(t -> props($air, t).h, 600.0) samples = 1 evals = 1) == 0
-        @test (@ballocated $D(hh -> IdealGasThermo.T_of_h($air, hh), 5e5) samples = 1 evals = 1) == 0
-        @test (@ballocated $D(pr -> IdealGasThermo.T_isentropic($air, 288.15, pr), 12.0) samples = 1 evals = 1) == 0
+        @test (@ballocated $D(hh -> IdealGasThermo.T_from_h($air, hh), 5e5) samples = 1 evals = 1) == 0
+        @test (@ballocated $D(pr -> IdealGasThermo._T_polytropic($air, 288.15, pr), 12.0) samples = 1 evals = 1) == 0
         # nested duals: d²h/dT² == dcp/dT
         d2h = D(t -> D(s -> IdealGasThermo.h(air, s), t), 1600.0)
         @test d2h ≈ D(t -> IdealGasThermo.cp(air, t), 1600.0) rtol = 1e-10

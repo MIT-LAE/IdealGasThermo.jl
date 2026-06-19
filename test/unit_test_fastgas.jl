@@ -2,9 +2,9 @@ using ForwardDiff
 
 @testset "FastFrozenGas inversions" begin
 
-    # the public inversion verb, used throughout: the keyword names what is
-    # known; the isentrope is a *process* and lives in compress/expand
-    Th(g, x) = temperature(g, h = x)
+    # the public inversion verb, used throughout: T_from_h inverts enthalpy;
+    # the isentrope is a *process* and lives in compress/expand
+    Th(g, x) = T_from_h(g, x)
     # single-method positional helpers: local closures with kwarg defaults
     # have non-specializing kwsorters, and multi-method local functions get
     # boxed when captured — both would charge allocations to the test helper
@@ -14,7 +14,7 @@ using ForwardDiff
     Exp(g, T1, PR) = expand(g, T1, PR)
     Exp_eta(g, T1, PR, etap) = expand(g, T1, PR; ηp = etap)
 
-    @testset "construction and :seeded temperature(h = ...)" begin
+    @testset "construction and :seeded T_from_h" begin
         air = FrozenGas(DryAir)
         fg = FastFrozenGas(air)
         @test fg isa FastFrozenGas{:seeded} # exact tier is the default
