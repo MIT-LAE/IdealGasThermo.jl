@@ -69,7 +69,7 @@ core, blocking feature parity for compressible-flow cycle code:
 
 5. **ForwardDiff.** `speed_of_sound`, `mach`, `stagnation_state`, and the
    `ηs` verbs are built on the property curves and the IFT-ruled engines
-   (`T_of_h`, `T_isentropic`), so `Dual`s propagate analytically and
+   (`T_from_h`, `_T_polytropic`), so `Dual`s propagate analytically and
    allocation-free — no new extension methods. `static_state`'s Newton runs
    on the value rail; differentiating it is supported but is not a closed-form
    IFT rule (no AD-through-Mach contract is claimed, mirroring the "don't

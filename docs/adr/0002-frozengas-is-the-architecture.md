@@ -27,7 +27,7 @@ and does `FrozenGas` take over the name `Gas`?
    unexported interactive convenience or deprecated in turn.
 
    > **Update (ADR-0008, 2026-06-19):** that condition is now met. The
-   > pure constructors cover all three jobs (`Combustor`/`products`,
+   > pure constructors cover all three jobs (`Vitiator`/`products`,
    > `mix`, `humid_air`), and the composition-workspace role is served by
    > the immutable `FrozenGas.X` (a mole-fraction `SVector` the gas now
    > carries). `Gas{N}` therefore retires **together with `Gas1D`**; the

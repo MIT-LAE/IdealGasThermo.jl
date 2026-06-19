@@ -6,7 +6,7 @@ Status: accepted
 ## Context
 
 ADR-0001/0002 established the immutable pure core (`FrozenGas`, `GasState`,
-`Combustor`/`products`, `Mixer`/`mixed`, the flow verbs) as *the* architecture and
+`Vitiator`/`products`, `mix`, the flow verbs) as *the* architecture and
 declared the mutable legacy layer — `Gas{N}`, `Gas1D`, the Dict-combustion in
 `combustion.jl`, the mutable-turbo in `turbo.jl`, `thermoProps.jl`, and the
 `Gas`-based `print_thermo_table` — deprecated, to be removed at v2.0. ADR-0006 then
@@ -55,7 +55,7 @@ Retire the legacy layer in **two phases**, separated by a migration window:
    legacy-only smoke test files (`unit_test_turbo`, `unit_test_vitiated`,
    `unit_test_composite`, the legacy parts of `unit_test_mixthermo`). Replace the
    remaining `vitiated_species(...)` *fixtures* in `unit_test_mixing`/
-   `unit_test_properties` with `products(Combustor(...), FAR)` (ADR-0006 §75). This
+   `unit_test_properties` with `products(Vitiator(...), FAR)` (ADR-0006 §75). This
    touches no pure-core oracle. Because the betas are pre-releases of `2.0.0`, `Gas`
    only ever exists in pre-release versions; the first *stable* 2.x release has it gone.
    **Before** deleting the legacy test files, two coverage items must be re-homed into
@@ -66,7 +66,7 @@ Retire the legacy layer in **two phases**, separated by a migration window:
    `generate_composite_species` is reachable from `DryAir`, `FrozenGas(X, name)`, and
    `humid_air`; (b) the component-value pin of `reaction_change_molar_fraction`,
    currently only in `test/unit_test_vitiated.jl` — it is called directly by the pure
-   `Combustor` constructor (`src/combustor.jl`). The other two legacy combustion
+   `Vitiator` constructor (`src/vitiator.jl`). The other two legacy combustion
    functions (`stoich_molar_FOR`, `vitiated_mixture`) are legacy-only and their tests
    die correctly with the layer.
 

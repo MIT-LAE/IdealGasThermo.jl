@@ -5,8 +5,8 @@ Status: accepted
 
 ## Context
 
-While the pure core (`FrozenGas`, `GasState`, `Combustor`/`products`,
-`Mixer`/`mixed`, `humid_air`, `static_state`/`stagnation_state`) was being
+While the pure core (`FrozenGas`, `GasState`, `Vitiator`/`products`,
+`mix`, `humid_air`, `static_state`/`stagnation_state`) was being
 built, its tests were written as **agreement with the legacy mutable layer**:
 `FrozenGas.cp ≈ Gas1D.cp`, `entropy(st) ≈ Gas1D.s`, `compress(st) ≈
 PressureRatio(Gas1D)`, `products ≈ vitiated_species`, and so on. That was the
