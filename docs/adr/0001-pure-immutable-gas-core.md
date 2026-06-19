@@ -36,8 +36,9 @@ in `claude_sandbox/proto_props/` and `claude_sandbox/proto_deriv/`) showed:
 2. All property functions are **pure functions of (gas, T)** — generic over
    `Real`, zero-allocation, thread-safe by construction. `props(gas, T)`
    returns (cp, h, ϕ) sharing the temperature powers and the single `log`.
-3. Inversions (`T_of_h`, `T_isentropic`) are deterministic bounded Newton
-   solves with documented tolerance, pure in `(gas, args)`.
+3. Inversions (`T_from_h`, and the internal polytropic-outlet engine
+   `_T_polytropic`) are deterministic bounded Newton solves with documented
+   tolerance, pure in `(gas, args)`.
 4. Derivatives are analytic, delivered through a **ForwardDiff package
    extension** (`weakdeps`): Dual dispatches use closed forms
    (dh/dT = cp, dϕ/dT = cp/T) and implicit-function-theorem rules for
