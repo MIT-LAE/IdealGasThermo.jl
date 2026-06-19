@@ -62,7 +62,8 @@ terms exactly.
     stream pressures (an isobaric mixer); a non-isobaric mix needs a **momentum
     closure**, which — like mass-flow bookkeeping — lives in the flow layer
     (PowerCycles), not here (ADR-0005). Returns the merged stagnation state.
-  - Replaces the `2.0.0-beta1` `Mixer`/`mixed` pair (deleted, never released).
+  - Replaces the `Mixer`/`mixed` pair (added then deleted during the `1.1.0`
+    work — never released).
 - **humid air** — dry air (`Xair`) plus water vapor:
   `humid_air(; SH, RH, T, P) -> FrozenGas`, a constructor (not a hot path)
   taking either the specific humidity ω [kg water/kg dry air] or relative
@@ -155,10 +156,10 @@ terms exactly.
 - The **pure core** (`FrozenGas` + property functions + inversions) is the
   deep module everything else composes over.
 - The mutable `Gas`/`Gas1D` types are the legacy *stateful convenience layer*.
-  As of `2.0.0-beta1` the **whole layer is loudly deprecated** and on a
+  As of `1.1.0` the **whole layer is loudly deprecated** and on a
   scheduled-deletion path (ADR-0002, ADR-0007): `Gas{N}`, `Gas1D`, and the
-  Dict-combustion / mutable-turbo functions they back are removed in `2.0.0`
-  final, after a `2.0.0-betaN` migration window. The pure core no longer touches
+  Dict-combustion / mutable-turbo functions they back are removed in a future
+  `2.0.0`, after a `1.x` migration window. The pure core no longer touches
   them — `DryAir` is now built directly from `Xair` (`generate_composite_species(
   Xidict2Array(Xair), …)`), not through `Gas()` — so the deletion is purely
   subtractive. **Migration:** `Gas{N}` → `FrozenGas` (composition + properties);

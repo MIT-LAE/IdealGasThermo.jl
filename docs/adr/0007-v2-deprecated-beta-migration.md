@@ -1,7 +1,8 @@
-# ADR-0007: Retire the mutable legacy layer via a loudly-deprecated `2.0.0-beta` series, then delete at `2.0.0` final
+# ADR-0007: Retire the mutable legacy layer via a deprecated `1.1.0`, then delete at `2.0.0`
 
 Date: 2026-06-17
-Status: accepted
+Status: accepted (version scheme revised 2026-06-19: this additive step is
+`1.1.0`, not the originally-planned `2.0.0-beta1` — see Context point 2)
 
 ## Context
 
@@ -20,10 +21,18 @@ Two facts shape *how* we remove the layer:
 1. **A live downstream consumer (PowerCycles.jl) must migrate against a real,
    Pkg-installable release.** A hard delete in one breaking commit gives consumers
    nothing to migrate *against* — they would jump from "legacy present" to "legacy
-   gone" with no overlap window. The package is not in the General registry, so a
-   consumer installs it by `url = ` + `rev = ` (a tag or branch).
-2. **Removing exported API (`Gas`, `Gas1D`) is what *defines* the major version
-   bump.** Under semver, the whole `1.x → 2.0` transition is one breaking step.
+   gone" with no overlap window. The package's only registered General version is
+   the legacy `1.0.0`; during migration a consumer pins the pure-core release by
+   `url = ` + `rev = ` (a tag), until that release is itself registered.
+2. **This addition is backward-compatible; only the eventual *removal* is
+   breaking.** Adding the pure core alongside the (still-working, now deprecated)
+   legacy layer removes nothing, so by semver it is a **minor** bump from the
+   published `1.0.0` → `1.1.0`. The breaking step — deleting the exported `Gas` /
+   `Gas1D` — is the major bump, a future `2.0.0`. (An earlier draft labelled this
+   work `2.0.0-beta1`; that presumed a jump straight to a breaking 2.0, which is
+   wrong now that `1.0.0` is a real published baseline and this release is additive.
+   A normal `1.1.0` is also registrable in General, whereas AutoMerge rejects
+   pre-releases.)
 
 ## Decision
 
