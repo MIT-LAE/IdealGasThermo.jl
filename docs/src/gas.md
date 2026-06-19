@@ -13,6 +13,13 @@ species
 ```@docs
 composite_species
 ```
+!!! warning "Deprecated — use `FrozenGas`"
+    The mutable `Gas` / `Gas1D` types and their in-place `set_*!` mutators
+    documented below are **deprecated** as of `v1.1.0` and will be removed in a
+    future `v2.0.0`. New code should use the immutable [`FrozenGas`](@ref) pure
+    core — see [The immutable pure core](@ref frozengas-page). (The `species` and
+    `composite_species` types above are *not* deprecated.)
+
 ## Gas mixtures
 `IdealGasThermo.jl` exports the `Gas` type which stores relevant thermodynamic
 information about the gas mixture.
