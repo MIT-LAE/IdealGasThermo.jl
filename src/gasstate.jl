@@ -170,11 +170,11 @@ function compress(gas::PureGas, T1, PR; ηp = nothing, ηs = nothing)
     )
     _check_one_efficiency(ηp, ηs, "compress")
     if ηs === nothing
-        T_isentropic(gas, T1, PR; ηp = _resolve_ηp(ηp))
+        _T_polytropic(gas, T1, PR; ηp = _resolve_ηp(ηp))
     else
         h1 = h(gas, T1)
-        T2s = T_isentropic(gas, T1, PR) # loss-free outlet at this PR
-        T_of_h(gas, h1 + (h(gas, T2s) - h1) / ηs)
+        T2s = _T_polytropic(gas, T1, PR) # loss-free outlet at this PR
+        T_from_h(gas, h1 + (h(gas, T2s) - h1) / ηs)
     end
 end
 
@@ -209,11 +209,11 @@ function expand(gas::PureGas, T1, PR; ηp = nothing, ηs = nothing)
     )
     _check_one_efficiency(ηp, ηs, "expand")
     if ηs === nothing
-        T_isentropic(gas, T1, inv(PR); ηp = inv(_resolve_ηp(ηp)))
+        _T_polytropic(gas, T1, inv(PR); ηp = inv(_resolve_ηp(ηp)))
     else
         h1 = h(gas, T1)
-        T2s = T_isentropic(gas, T1, inv(PR)) # loss-free outlet at this PR
-        T_of_h(gas, h1 - ηs * (h1 - h(gas, T2s)))
+        T2s = _T_polytropic(gas, T1, inv(PR)) # loss-free outlet at this PR
+        T_from_h(gas, h1 - ηs * (h1 - h(gas, T2s)))
     end
 end
 
@@ -275,7 +275,7 @@ Constant-pressure heat addition of `q` `J/kg` (signed: negative `q`
 cools): a new state at the same pressure with `h(out) = h(st) + q`, the
 temperature from the enthalpy inversion. The input state is untouched.
 """
-add_heat(st::GasState, q) = GasState(st.gas, T_of_h(st.gas, h(st.gas, st.T) + q), st.P)
+add_heat(st::GasState, q) = GasState(st.gas, T_from_h(st.gas, h(st.gas, st.T) + q), st.P)
 
 """
     add_work(st::GasState, w; ηp = 1.0) -> GasState
@@ -315,7 +315,7 @@ function _work(st::GasState, w, Δh, ηp, extracting::Bool = false)
     )
     gas = st.gas
     K = extracting ? inv(ηp) : ηp
-    T2 = T_of_h(gas, h(gas, st.T) + Δh)
+    T2 = T_from_h(gas, h(gas, st.T) + Δh)
     P2 = st.P * exp(K / R(gas) * (s0(gas, T2) - s0(gas, st.T)))
     GasState(gas, T2, P2)
 end

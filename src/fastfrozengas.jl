@@ -3,7 +3,7 @@
 
 A [`FrozenGas`](@ref) bundled with two precomputed cubic-Hermite *inverse*
 tables on uniform grids — h → T and s0 → T — that accelerate the
-[`temperature`](@ref) inversions. The `mode` type parameter selects the
+[`T_from_h`](@ref) (and the internal isentropic) inversions. The `mode` type parameter selects the
 accuracy tier, so a `FastFrozenGas` drops into any code written against the
 gas interface with no call-site changes:
 
@@ -12,7 +12,7 @@ julia> air  = FrozenGas(DryAir);
 julia> fast = FastFrozenGas(air);              # mode = :seeded (default)
 julia> fast = FastFrozenGas(air, mode = :fast) # pure-lookup tier
 
-julia> temperature(fast, h = 5.0e5)            # same verb for every gas
+julia> T_from_h(fast, 5.0e5)                    # same verb for every gas
 ```
 
 Only the inverses are accelerated. The forward property functions
@@ -116,7 +116,7 @@ function FastFrozenGas(
     # h → T
     hmin, hmax = h(gas, Tmin), h(gas, Tmax)
     dh = (hmax - hmin) / (N - 1)
-    Th = [T_of_h(gas, hmin + (i - 1) * dh; Tguess = 0.5 * (Tmin + Tmax)) for i = 1:N]
+    Th = [T_from_h(gas, hmin + (i - 1) * dh; Tguess = 0.5 * (Tmin + Tmax)) for i = 1:N]
     Mh = [1 / cp(gas, T) for T in Th]
     # s0 → T
     s0min, s0max = s0(gas, Tmin), s0(gas, Tmax)
@@ -153,47 +153,47 @@ end
 
 # ---- :seeded mode — exact, table-seeded Newton -----------------------------
 
-function T_of_h(fg::FastFrozenGas{:seeded}, hspec::AbstractFloat)
+function T_from_h(fg::FastFrozenGas{:seeded}, hspec::AbstractFloat)
     if !(fg.hmin ≤ hspec ≤ fg.hmax)
-        return T_of_h(fg.gas, hspec) # out of table range: exact cold-start solve
+        return T_from_h(fg.gas, hspec) # out of table range: exact cold-start solve
     end
     # In range: the only thing the table buys is a near-exact starting point, so
     # seed the FrozenGas Newton solve with the Hermite guess (≈1–2 iterations)
     # rather than duplicating the loop. Same gas, same polynomials, same
     # convergence criterion — only the initial guess differs from a cold solve.
-    return T_of_h(fg.gas, hspec; Tguess = _hermite_h(fg, hspec))
+    return T_from_h(fg.gas, hspec; Tguess = _hermite_h(fg, hspec))
 end
 
-function T_isentropic(fg::FastFrozenGas{:seeded}, T1::AbstractFloat, PR::AbstractFloat; ηp = 1.0)
+function _T_polytropic(fg::FastFrozenGas{:seeded}, T1::AbstractFloat, PR::AbstractFloat; ηp = 1.0)
     gas = fg.gas
     target = s0(gas, T1) + gas.R * log(PR) / ηp
     if !(fg.s0min ≤ target ≤ fg.s0max)
-        return T_isentropic(gas, T1, PR; ηp = ηp) # out of table range: exact cold start
+        return _T_polytropic(gas, T1, PR; ηp = ηp) # out of table range: exact cold start
     end
     # In range: seed the FrozenGas Newton solve with the Hermite guess rather than
-    # duplicating the loop (see T_of_h above). The s0 `target` is recomputed inside
+    # duplicating the loop (see T_from_h above). The s0 `target` is recomputed inside
     # for the residual — one extra s0 evaluation, the price of not repeating the loop.
-    return T_isentropic(gas, T1, PR; ηp = ηp, Tguess = _hermite_s0(fg, target))
+    return _T_polytropic(gas, T1, PR; ηp = ηp, Tguess = _hermite_s0(fg, target))
 end
 
 # ---- :fast mode — pure Hermite lookup, loud out of range -------------------
 
-function T_of_h(fg::FastFrozenGas{:fast}, hspec::AbstractFloat)
+function T_from_h(fg::FastFrozenGas{:fast}, hspec::AbstractFloat)
     if !(fg.hmin ≤ hspec ≤ fg.hmax)
         throw(DomainError(hspec,
-            "temperature(fg, h = ...): h outside the tabulated range " *
+            "T_from_h(fg, h): h outside the tabulated range " *
             "[$(fg.hmin), $(fg.hmax)] J/kg; use the :seeded mode for the " *
             "exact out-of-range solve or rebuild with a wider [Tmin, Tmax]"))
     end
     _hermite_h(fg, hspec)
 end
 
-function T_isentropic(fg::FastFrozenGas{:fast}, T1::AbstractFloat, PR::AbstractFloat; ηp = 1.0)
+function _T_polytropic(fg::FastFrozenGas{:fast}, T1::AbstractFloat, PR::AbstractFloat; ηp = 1.0)
     gas = fg.gas
     target = s0(gas, T1) + gas.R * log(PR) / ηp
     if !(fg.s0min ≤ target ≤ fg.s0max)
         throw(DomainError(target,
-            "T_isentropic(fg, T1 = $T1, PR = $PR, ηp = $ηp): target s0 outside " *
+            "_T_polytropic(fg, T1 = $T1, PR = $PR, ηp = $ηp): target s0 outside " *
             "the tabulated range [$(fg.s0min), $(fg.s0max)] J/kg/K; use the " *
             ":seeded mode for the exact out-of-range solve or rebuild with a " *
             "wider [Tmin, Tmax]"))
@@ -204,6 +204,6 @@ end
 # Convenience: integers/rationals promote to float, as the untyped FrozenGas
 # methods accept. ForwardDiff Duals dispatch to the (more specific) rules in
 # the package extension — they never reach the float Newton loop here.
-T_of_h(fg::FastFrozenGas, hspec::Real) = T_of_h(fg, float(hspec))
-T_isentropic(fg::FastFrozenGas, T1::Real, PR::Real; ηp = 1.0) =
-    T_isentropic(fg, float(T1), float(PR); ηp = ηp)
+T_from_h(fg::FastFrozenGas, hspec::Real) = T_from_h(fg, float(hspec))
+_T_polytropic(fg::FastFrozenGas, T1::Real, PR::Real; ηp = 1.0) =
+    _T_polytropic(fg, float(T1), float(PR); ηp = ηp)

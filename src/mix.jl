@@ -42,5 +42,5 @@ function mix(a::GasState, b::GasState, mratio)
     )
     gm = mix(a.gas, b.gas, mratio)
     hmix = (h(a.gas, a.T) + mratio * h(b.gas, b.T)) / (1 + mratio)
-    GasState(gm, T_of_h(gm, hmix), a.P)
+    GasState(gm, T_from_h(gm, hmix), a.P)
 end

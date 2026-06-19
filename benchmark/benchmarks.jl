@@ -44,12 +44,12 @@ SUITE["properties"]["cp (T-sweep)"]            = @benchmarkable sweep_cp($AIR, $
 SUITE["properties"]["gamma"]                   = @benchmarkable IGT.gamma($AIR, 1200.0)
 
 # ---- 2. inversions: enthalpy and isentrope ----------------------------------
-sweep_Tofh(gas, HT) = sum(hh -> T_of_h(gas, hh), HT)
-SUITE["inversions"]["T_of_h | FrozenGas (Newton)"]          = @benchmarkable sweep_Tofh($AIR, $HT)
-SUITE["inversions"]["T_of_h | FastFrozenGas :seeded"]       = @benchmarkable sweep_Tofh($FG_SEEDED, $HT)
-SUITE["inversions"]["T_of_h | FastFrozenGas :fast"]         = @benchmarkable sweep_Tofh($FG_FAST, $HT)
-SUITE["inversions"]["T_isentropic | FrozenGas"]             = @benchmarkable T_isentropic($AIR, 288.15, 12.0)
-SUITE["inversions"]["T_isentropic | FastFrozenGas :seeded"] = @benchmarkable T_isentropic($FG_SEEDED, 288.15, 12.0)
+sweep_Tofh(gas, HT) = sum(hh -> T_from_h(gas, hh), HT)
+SUITE["inversions"]["T_from_h | FrozenGas (Newton)"]          = @benchmarkable sweep_Tofh($AIR, $HT)
+SUITE["inversions"]["T_from_h | FastFrozenGas :seeded"]       = @benchmarkable sweep_Tofh($FG_SEEDED, $HT)
+SUITE["inversions"]["T_from_h | FastFrozenGas :fast"]         = @benchmarkable sweep_Tofh($FG_FAST, $HT)
+SUITE["inversions"]["T_polytropic | FrozenGas"]             = @benchmarkable IGT._T_polytropic($AIR, 288.15, 12.0)
+SUITE["inversions"]["T_polytropic | FastFrozenGas :seeded"] = @benchmarkable IGT._T_polytropic($FG_SEEDED, 288.15, 12.0)
 
 # ---- 3. process verbs (GasState) --------------------------------------------
 SUITE["verbs"]["compress (ηp)"]   = @benchmarkable compress($ST, 12.0; ηp = 0.9)
@@ -75,8 +75,8 @@ mkdual(x, ::Val{N}) where {N} = ForwardDiff.Dual(x, ntuple(_ -> 1.0, Val(N)))
 sweep_dh(gas, TT, v) = sum(T -> ForwardDiff.value(IGT.h(gas, mkdual(T, v))), TT)
 SUITE["autodiff"]["dh/dT, 1 partial (T-sweep)"]   = @benchmarkable sweep_dh($AIR, $TT, $(Val(1)))
 SUITE["autodiff"]["dh/dT, 8 partials (T-sweep)"]  = @benchmarkable sweep_dh($AIR, $TT, $(Val(8)))
-SUITE["autodiff"]["d(T_of_h), 8 partials (IFT)"]  =
-    @benchmarkable sum(hh -> ForwardDiff.value(T_of_h($AIR, mkdual(hh, Val(8)))), $HT)
+SUITE["autodiff"]["d(T_from_h), 8 partials (IFT)"]  =
+    @benchmarkable sum(hh -> ForwardDiff.value(T_from_h($AIR, mkdual(hh, Val(8)))), $HT)
 # Dual-carrying substance: derivative of an outlet property w.r.t. FAR, where the
 # product composition (hence the gas's own coefficients) carry the FAR-tangent.
 SUITE["autodiff"]["d(products)/dFAR"] =

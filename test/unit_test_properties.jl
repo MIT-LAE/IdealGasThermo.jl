@@ -175,11 +175,11 @@ using ForwardDiff
     @testset "error paths: pathological inputs fail loudly, not silently" begin
         # inversion driven into negative-temperature territory: the Newton
         # iterate hits log(T ≤ 0)
-        @test_throws DomainError temperature(air, h = -1.0e10)
+        @test_throws DomainError T_from_h(air, -1.0e10)
         # inversion target beyond any representable temperature: the bounded
         # Newton loop exhausts NEWTON_MAXITER and raises (the non-convergence
         # branch is live code, not decoration)
-        @test_throws ErrorException temperature(air, h = 1.0e12)
+        @test_throws ErrorException T_from_h(air, 1.0e12)
         # beyond-stoichiometric FAR would need negative O2 — errors loudly
         # rather than returning an unphysical composition
         @test_throws DomainError products(sysCH4, 0.5)
@@ -209,19 +209,19 @@ using ForwardDiff
 
             # (1) burner energy balance: Dual gas + Dual target
             hA = IdealGasThermo.h(air, uni(500.0, 900.0))
-            T4of(far) = temperature(products(sys, far), h = (hA + far * hF) / (1 + far))
+            T4of(far) = T_from_h(products(sys, far), (hA + far * hF) / (1 + far))
             d1 = D(T4of, FAR0)
             @test d1 isa Real                       # not a nested Dual
             @test d1 ≈ fdcheck(T4of, FAR0) rtol = 1e-6
 
             # (2) Dual gas + plain-Float target: invert a moving gas to fixed h
             hfix = IdealGasThermo.h(products(sys, FAR0), uni(1200.0, 1900.0))
-            Tfix(far) = temperature(products(sys, far), h = hfix)
+            Tfix(far) = T_from_h(products(sys, far), hfix)
             @test D(Tfix, FAR0) ≈ fdcheck(Tfix, FAR0) rtol = 1e-6
 
             # (3) Dual gas through the isentropic inversion
             T1, PR = uni(1100.0, 1500.0), uni(2.0, 10.0)
-            Tisen(far) = IdealGasThermo.T_isentropic(products(sys, far), T1, PR)
+            Tisen(far) = IdealGasThermo._T_polytropic(products(sys, far), T1, PR)
             @test D(Tisen, FAR0) ≈ fdcheck(Tisen, FAR0) rtol = 1e-6
         end
     end

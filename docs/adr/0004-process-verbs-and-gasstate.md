@@ -4,6 +4,17 @@ Date: 2026-06-12
 Status: accepted (supersedes the `temperature(gas; T1, PR, ηp)` form named
 in ADR-0003's amendment)
 
+> **Update (2026-06-19) — inversion naming.** This ADR's `temperature(gas; h = …)`
+> keyword facade is **removed**. Julia does not dispatch on keyword arguments, so a
+> facade that grows to cover more inversions can only be a `nothing`-checking
+> branch — exactly the mess this verb was meant to avoid. The enthalpy → temperature
+> inversion is now the explicitly-named, exported **`T_from_h(gas, hspec)`** (the
+> inverse of `h(gas, T)`; an analogous `T_from_s0` would invert entropy). The
+> internal isentropic engine `T_isentropic` is renamed **`_T_polytropic`** and made
+> unexported — its old name claimed isentropic even with `ηp ≠ 1`, which is false;
+> the public process API remains `compress`/`expand` (this ADR). Everything below
+> stands; only the inversion *names* changed.
+
 ## Context
 
 Cycle code written against the pure core had two recurring frictions,

@@ -165,7 +165,7 @@ pressure, no state. Zero-allocation, generic over `Real`.
 """
 @inline speed_of_sound(gas::FrozenGas, T) = sqrt(gamma(gas, T) * gas.R * T)
 
-# Inversion contract (T_of_h, T_isentropic): Newton iteration, relative
+# Inversion contract (T_from_h, _T_polytropic): Newton iteration, relative
 # tolerance 1e-12 on the temperature step (well inside the documented
 # ≤ 1e-10), at most 30 iterations, deterministic fixed algorithm, errors if
 # not converged. dh/dT = cp > 0 makes h strictly monotonic in T, so the
@@ -174,14 +174,23 @@ const NEWTON_RTOL = 1e-12
 const NEWTON_MAXITER = 30
 
 """
-    T_of_h(gas::FrozenGas, hspec; Tguess=500.0)
+    T_from_h(gas, hspec; Tguess=500.0)
 
-Temperature [K] at which the gas has specific enthalpy `hspec` `J/kg`
-(same formation-inclusive datum as [`h`](@ref)). Deterministic bounded
-Newton solve: relative tolerance 1e-12, ≤ 30 iterations; errors if not
-converged. Pure and zero-allocation.
+The enthalpy → temperature inversion: the temperature [K] at which `gas` has
+specific enthalpy `hspec` `J/kg` (same formation-inclusive datum as
+[`h`](@ref)). This is the public inversion verb — the inverse of `h(gas, T)` —
+and reads in the direction of the computation (`T_from_h`); an analogous
+`T_from_s0` would invert entropy.
+
+Identical for every gas flavor: `FrozenGas` (plain Newton), `FastFrozenGas{:seeded}`
+(table-seeded Newton, same exact contract), and `FastFrozenGas{:fast}` (pure
+table lookup, ≲ 2e-9), so accelerated gases drop into existing call sites
+unchanged. Deterministic bounded Newton solve: relative tolerance 1e-12, ≤ 30
+iterations; errors if not converged. `hspec` may be a ForwardDiff `Dual` —
+derivatives use the implicit-function-theorem rules from the package extension,
+never differentiation of the Newton loop. Pure and zero-allocation.
 """
-function T_of_h(gas::FrozenGas, hspec; Tguess = 500.0)
+function T_from_h(gas::FrozenGas, hspec; Tguess = 500.0)
     T = one(hspec / oneunit(hspec)) * Tguess # promote to eltype of hspec
     for _ = 1:NEWTON_MAXITER
         dT = (hspec - h(gas, T)) / cp(gas, T)
@@ -190,30 +199,28 @@ function T_of_h(gas::FrozenGas, hspec; Tguess = 500.0)
             return T
         end
     end
-    error("T_of_h did not converge for hspec = $hspec (last T = $T)")
+    error("T_from_h did not converge for hspec = $hspec (last T = $T)")
 end
 
 """
     pressure_ratio(gas::FrozenGas, T1, T2)
 
 The pressure ratio P2/P1 across an ideal (isentropic) process taking the gas
-from `T1` to `T2` [K]: `exp((s0(T2) - s0(T1))/R)`. Inverse of
-[`T_isentropic`](@ref). Pure, zero-allocation, generic over `Real`.
+from `T1` to `T2` [K]: `exp((s0(T2) - s0(T1))/R)`. The inverse of the
+isentropic temperature relation (the `ηp = 1` case behind [`compress`](@ref)/
+[`expand`](@ref)). Pure, zero-allocation, generic over `Real`.
 """
 @inline pressure_ratio(gas::FrozenGas, T1, T2) =
     exp((s0(gas, T2) - s0(gas, T1)) / gas.R)
 
-"""
-    T_isentropic(gas::FrozenGas, T1, PR; ηp=1.0)
-
-Temperature [K] after an ideal compression/expansion from `T1` [K] by
-pressure ratio `PR`, solving `s0(T2) = s0(T1) + R·ln(PR)/ηp` (Newton with a
-constant-γ initial guess; relative tolerance 1e-12, ≤ 30 iterations; errors
-if not converged). `ηp` is the polytropic efficiency: pass `ηp` for
-compression (PR > 1) and `1/ηp` for expansion (PR < 1) conventions, or leave
-at 1 for the isentropic relation. Pure and zero-allocation.
-"""
-function T_isentropic(gas::FrozenGas, T1, PR; ηp = 1.0, Tguess = nothing)
+# Internal engine (not exported): temperature [K] after a compression/expansion
+# from `T1` by pressure ratio `PR`, solving `s0(T2) = s0(T1) + R·ln(PR)/ηp`
+# (Newton, constant-γ seed, rtol 1e-12, ≤ 30 iters). `ηp` is the POLYTROPIC
+# efficiency — isentropic is just the `ηp = 1` case, which is why the name is
+# `_T_polytropic`, not `T_isentropic` (the old name claimed isentropic
+# unconditionally, which is false for ηp ≠ 1). The public process API is
+# `compress`/`expand` (ADR-0004); callers use those, not this.
+function _T_polytropic(gas::FrozenGas, T1, PR; ηp = 1.0, Tguess = nothing)
     target = s0(gas, T1) + gas.R * log(PR) / ηp
     # constant-γ initial guess, unless a seed is supplied (e.g. a table lookup
     # from FastFrozenGas{:seeded}); the `=== nothing` check folds away per call.
@@ -225,41 +232,5 @@ function T_isentropic(gas::FrozenGas, T1, PR; ηp = 1.0, Tguess = nothing)
             return T
         end
     end
-    error("T_isentropic did not converge for T1 = $T1, PR = $PR (last T = $T)")
-end
-
-"""
-    temperature(gas; h = ...)
-
-The public inversion verb: the temperature [K] at which the gas has
-specific enthalpy `h` `J/kg` (same formation-inclusive datum as
-[`h`](@ref)).
-
-The verb is identical for every gas flavor — `FrozenGas` (plain Newton),
-`FastFrozenGas{:seeded}` (table-seeded Newton, same exact contract), and
-`FastFrozenGas{:fast}` (pure table lookup, ≲ 2e-9) — so accelerated gases
-drop into existing call sites unchanged. The keyword value may be a
-ForwardDiff `Dual`; derivatives use the implicit-function-theorem rules
-from the package extension, never differentiation of the Newton loop.
-
-`temperature` inverts a property relation; it does not run a process. The
-former isentrope form `temperature(gas, T1 = ..., PR = ...; ηp)` is now an
-`ArgumentError` — a polytropic change of state is a *process*, expressed by
-the process verbs [`compress`](@ref) and [`expand`](@ref) (both with
-pressure ratio ≥ 1; the direction lives in the verb). See ADR-0004.
-"""
-function temperature(gas; h = nothing, T1 = nothing, PR = nothing, ηp = nothing)
-    if T1 !== nothing || PR !== nothing || ηp !== nothing
-        throw(
-            ArgumentError(
-                "temperature no longer takes the isentrope form (T1/PR/ηp): " *
-                "that is a process, not an inversion — use " *
-                "compress(gas, T1, PR; ηp) or expand(gas, T1, PR; ηp), " *
-                "both with pressure ratio ≥ 1",
-            ),
-        )
-    end
-    h !== nothing ||
-        throw(ArgumentError("temperature: specify h = ... (enthalpy inversion)"))
-    return T_of_h(gas, h)
+    error("_T_polytropic did not converge for T1 = $T1, PR = $PR (last T = $T)")
 end

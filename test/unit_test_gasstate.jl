@@ -62,9 +62,9 @@ using ForwardDiff
         end
         # ηp = 1 reduces both to the pure isentrope
         @test compress(air, 288.15, 12.0) ≈
-              IdealGasThermo.T_isentropic(air, 288.15, 12.0) rtol = 1e-14
+              IdealGasThermo._T_polytropic(air, 288.15, 12.0) rtol = 1e-14
         @test expand(air, 1600.0, 4.0) ≈
-              IdealGasThermo.T_isentropic(air, 1600.0, 0.25) rtol = 1e-14
+              IdealGasThermo._T_polytropic(air, 1600.0, 0.25) rtol = 1e-14
         # the verbs work for every gas flavor through the same engine
         fg = FastFrozenGas(air)
         @test compress(fg, 288.15, 12.0) ≈ compress(air, 288.15, 12.0) rtol = 1e-10
@@ -226,24 +226,18 @@ using ForwardDiff
         @test_throws ArgumentError extract_work(st1, -1.0)
     end
 
-    @testset "temperature facade: h-inversion only, isentrope form removed" begin
+    @testset "T_from_h inversion (enthalpy → temperature)" begin
         air = FrozenGas(DryAir)
-        # the h form is unchanged
+        # the public inversion verb: T_from_h inverts h(gas, T). The former
+        # `temperature(gas; h)` facade and its isentrope-form ArgumentError are
+        # gone — a polytropic change of state is a process, expressed by the
+        # compress/expand verbs (tested above), not an inversion.
         for T in [250.0, 500.0, 1600.0]
-            @test temperature(air, h = IdealGasThermo.h(air, T)) ≈ T rtol = 1e-10
+            @test T_from_h(air, IdealGasThermo.h(air, T)) ≈ T rtol = 1e-10
         end
-        # the isentrope form is a process, not an inversion — it now lives in
-        # the compress/expand verbs; the old kwargs throw with a pointer there
-        @test_throws ArgumentError temperature(air, T1 = 288.15, PR = 12.0)
-        @test_throws ArgumentError temperature(air, T1 = 288.15, PR = 12.0, ηp = 0.9)
-        @test_throws ArgumentError temperature(air, T1 = 288.15)
-        @test_throws ArgumentError temperature(air, PR = 12.0)
-        @test_throws ArgumentError temperature(air, h = 5.0e5, T1 = 288.15, PR = 12.0)
-        @test_throws ArgumentError temperature(air)
-        # same facade behavior for the accelerated flavors
+        # accelerated flavors invert through the same verb, no call-site change
         fg = FastFrozenGas(air)
-        @test temperature(fg, h = IdealGasThermo.h(air, 700.0)) ≈ 700.0 rtol = 1e-10
-        @test_throws ArgumentError temperature(fg, T1 = 288.15, PR = 12.0)
+        @test T_from_h(fg, IdealGasThermo.h(air, 700.0)) ≈ 700.0 rtol = 1e-10
     end
 
     @testset "zero allocations after warmup" begin
@@ -316,7 +310,7 @@ using ForwardDiff
         @test D(t -> compress(GasState(air, t, 101325.0), PR).T, 288.15) ≈
               IdealGasThermo.cp(air, 288.15) * T2 /
               (IdealGasThermo.cp(air, T2) * 288.15) rtol = 1e-10
-        # Duals through q: ∂(add_heat(st, q).T)/∂q = 1/cp(T2) (IFT for T_of_h)
+        # Duals through q: ∂(add_heat(st, q).T)/∂q = 1/cp(T2) (IFT for T_from_h)
         q = 5.0e5
         Tq = add_heat(st, q).T
         @test D(qq -> add_heat(st, qq).T, q) ≈
