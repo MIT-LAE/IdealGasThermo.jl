@@ -8,10 +8,20 @@ makedocs(
     sitename = "IdealGasThermo.jl",
     pages = [
         "Home" => "index.md",
+        "Tutorials" => [
+            "Getting started" => "tutorials/getting_started.md",
+            "Combustion and mixing" => "tutorials/combustion.md",
+            "Humid air and saturation" => "tutorials/humid_air.md",
+        ],
         "Thermodynamic Data" => "readthermo.md",
-        "Gas and Species" => "gas.md",
-        "Pure-core API (v2)" => "purecore.md",
-        "Ideal gas thermodynamics" => "idealgasthermo.md",
+        "Gas and Species" => [
+            "Species and legacy types" => "gas.md",
+            "Immutable pure core (FrozenGas)" => "frozengas.md",
+        ],
+        "Ideal gas thermodynamics" => [
+            "Properties" => "idealgasthermo.md",
+            "Derivatives" => "derivatives.md",
+        ],
         "Combustion" => "combustion.md",
         "Performance benchmarks" => "benchmark.md",
     ],

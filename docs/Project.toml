@@ -1,5 +1,8 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+IdealGasThermo = "d4fb33c0-2494-4384-b7a5-e5d0487b6649"
 
 [compat]
 Documenter = "1.1"
+ForwardDiff = "0.10.36 - 1"
