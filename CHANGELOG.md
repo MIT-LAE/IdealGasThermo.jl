@@ -4,19 +4,19 @@ All notable changes to IdealGasThermo.jl are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/); the project follows
 [Semantic Versioning](https://semver.org/).
 
-## [2.0.0-beta1] — 2026-06-19
+## [1.1.0] — 2026-06-19
 
-First public pre-release of `2.0.0`. The **immutable pure core is the headline
-API**; the legacy mutable layer is **loudly deprecated but fully working**. Nothing
-that was exported has been removed or renamed — this release is **safe to adopt and
-to migrate against**, and downstream packages can pin this tag (or its SHA) with
-confidence. The breaking removal of the legacy layer is deferred to `2.0.0` final
-(ADR-0007).
+A purely **additive** minor release over `1.0.0`: the immutable pure core becomes
+the headline API, and the legacy mutable layer is **loudly deprecated but fully
+working**. Nothing exported is removed or renamed — `1.1.0` is backward-compatible
+with `1.0.0` and **safe to adopt and migrate against**; downstream packages can pin
+this tag (or its SHA). The breaking removal of the legacy layer is deferred to a
+future **`2.0.0`** (ADR-0002, ADR-0007).
 
 ### Added
 
-The entire immutable pure core is **net-new** in v2 (it did not exist in any prior
-release). `using IdealGasThermo` now makes the following callable without
+The entire immutable pure core is **net-new** in this release (it did not exist in
+`1.0.0`). `using IdealGasThermo` now makes the following callable without
 qualification:
 
 - **`FrozenGas`** — the immutable, `isbits` substance: mass-specific NASA-9 property
@@ -67,7 +67,7 @@ qualification:
   `combustion.jl`, the mutable-turbo in `turbo.jl`, `thermoProps.jl`, and the
   `Gas`-based `print_thermo_table`). They still work; constructing a `Gas` or
   `Gas1D` now emits a **loud, once-per-session** deprecation warning. Scheduled for
-  deletion in `2.0.0` final (ADR-0002, ADR-0007).
+  removal in a future `2.0.0` (ADR-0002, ADR-0007).
 
   **Migration to the pure core:**
 
@@ -88,7 +88,7 @@ qualification:
 - **`DryAir` is now built directly from the `Xair` mole-fraction table**
   (`generate_composite_species(Xidict2Array(Xair), "Dry Air")`) instead of through
   `Gas()`. This cuts the last tie between the pure core and the legacy layer, so the
-  layer can be deleted in `2.0.0` final without touching any live path. The result is
+  layer can be removed in the future `2.0.0` without touching any live path. The result is
   identical to the previous construction to machine precision (molecular weight
   bit-equal; `cp` / `h` / `s0` agree to ~1e-14). No user-facing change.
 
@@ -111,15 +111,17 @@ qualification:
   per type per session. They are **not** `Base.depwarn`, so they are unaffected by
   the `--depwarn` flag (neither hidden by its default nor escalated to errors by
   `--depwarn=error`).
-- The pre-v2 test suite (the legacy `Gas` / `Gas1D` suite, 514 tests) runs unchanged
+- The `1.0.0` legacy test suite (the `Gas` / `Gas1D` suite, 514 tests) runs unchanged
   against this source and passes — no hard breaks, no numeric drift.
 
-## Prior releases
+## [1.0.0]
 
-The pre-v2 package was the mutable, stateful `Gas` / `Gas1D` convenience layer for
-NASA-9 thermodynamics; the immutable pure core did not yet exist. The last public
-tags were `v0.1`, `v0.1.1`, `v0.1.2`. (An untagged `1.0.0` exists in the pre-v2
-baseline's `Project.toml`, but it was never released — it is an internal version
-number of the same legacy-only package, not a public release of a pure core.)
+The mutable, stateful `Gas` / `Gas1D` convenience layer for NASA-9 thermodynamics —
+the baseline this `1.1.0` extends. The immutable pure core did not yet exist. This is
+the **sole version registered in the Julia General registry**, so `Pkg.add("IdealGasThermo")`
+installs it today. (General records `1.0.0` against a commit; the matching `v1.0.0`
+git tag was never pushed — TagBot did not run — so the repository shows only the
+earlier, hand-made `v0.1`, `v0.1.1`, `v0.1.2` tags, which were never registered.)
 
-[2.0.0-beta1]: https://github.com/MIT-LAE/IdealGasThermo.jl/releases/tag/v2.0.0-beta1
+[1.1.0]: https://github.com/MIT-LAE/IdealGasThermo.jl/releases/tag/v1.1.0
+[1.0.0]: https://github.com/MIT-LAE/IdealGasThermo.jl

@@ -21,13 +21,13 @@ Pkg.add(url = "https://github.com/MIT-LAE/IdealGasThermo.jl")
 
 `using IdealGasThermo` to load it (the module name is `IdealGasThermo`, independent of the repository name).
 
-### v2.0 pre-release (beta)
+### v1.1 — the immutable pure core (additive)
 
-The `2.0.0-beta` series promotes the immutable pure core (`FrozenGas`, `GasState`, and the process/flow verbs) to the headline API and **loudly deprecates** the legacy mutable layer (`Gas`, `Gas1D`, and the functions they back), which is removed in `2.0.0` final. To pin a downstream project to a specific beta during migration, install by tag:
+`1.1.0` promotes the immutable pure core (`FrozenGas`, `GasState`, and the process/flow verbs) to the headline API and **loudly deprecates** the legacy mutable layer (`Gas`, `Gas1D`, and the functions they back). It is purely additive over `1.0.0` — nothing is removed — so it is safe to adopt and migrate against; the legacy layer is removed in a future `2.0.0`. Pin a downstream project by tag (or SHA):
 
 ```julia
 using Pkg
-Pkg.add(url = "https://github.com/MIT-LAE/IdealGasThermo.jl", rev = "v2.0.0-beta1")
+Pkg.add(url = "https://github.com/MIT-LAE/IdealGasThermo.jl", rev = "v1.1.0")
 ```
 
 See [`CHANGELOG.md`](CHANGELOG.md) for the migration mapping and [`docs/adr/0007-v2-deprecated-beta-migration.md`](docs/adr/0007-v2-deprecated-beta-migration.md) for the rationale.
