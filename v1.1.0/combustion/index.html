@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Combustion · IdealGasThermo.jl</title><meta name="title" content="Combustion · IdealGasThermo.jl"/><meta property="og:title" content="Combustion · IdealGasThermo.jl"/><meta property="twitter:title" content="Combustion · IdealGasThermo.jl"/><meta name="description" content="Documentation for IdealGasThermo.jl."/><meta property="og:description" content="Documentation for IdealGasThermo.jl."/><meta property="twitter:description" content="Documentation for IdealGasThermo.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img class="docs-light-only" src="../assets/logo.svg" alt="IdealGasThermo.jl logo"/><img class="docs-dark-only" src="../assets/logo-dark.svg" alt="IdealGasThermo.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">IdealGasThermo.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../tutorials/getting_started/">Getting started</a></li><li><a class="tocitem" href="../tutorials/combustion/">Combustion and mixing</a></li><li><a class="tocitem" href="../tutorials/humid_air/">Humid air and saturation</a></li></ul></li><li><a class="tocitem" href="../readthermo/">Thermodynamic Data</a></li><li><span class="tocitem">Gas and Species</span><ul><li><a class="tocitem" href="../gas/">Species and legacy types</a></li><li><a class="tocitem" href="../frozengas/">Immutable pure core (FrozenGas)</a></li></ul></li><li><span class="tocitem">Ideal gas thermodynamics</span><ul><li><a class="tocitem" href="../idealgasthermo/">Properties</a></li><li><a class="tocitem" href="../derivatives/">Derivatives</a></li></ul></li><li class="is-active"><a class="tocitem" href>Combustion</a><ul class="internal"><li><a class="tocitem" href="#Calculating-stoichiometric-fuel-oxidizer-ratio"><span>Calculating stoichiometric fuel-oxidizer ratio</span></a></li><li><a class="tocitem" href="#vitiated"><span>Vitiated gas composition</span></a></li></ul></li><li><a class="tocitem" href="../benchmark/">Performance benchmarks</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Combustion</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Combustion</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/MIT-LAE/IdealGasThermo.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/main/docs/src/combustion.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Modeling-combustion"><a class="docs-heading-anchor" href="#Modeling-combustion">Modeling combustion</a><a id="Modeling-combustion-1"></a><a class="docs-heading-anchor-permalink" href="#Modeling-combustion" title="Permalink"></a></h1><p><code>IdealGasThermo</code> allows us to perform simple combustion calculations.  The following functions are useful utilites to do so.</p><h2 id="Calculating-stoichiometric-fuel-oxidizer-ratio"><a class="docs-heading-anchor" href="#Calculating-stoichiometric-fuel-oxidizer-ratio">Calculating stoichiometric fuel-oxidizer ratio</a><a id="Calculating-stoichiometric-fuel-oxidizer-ratio-1"></a><a class="docs-heading-anchor-permalink" href="#Calculating-stoichiometric-fuel-oxidizer-ratio" title="Permalink"></a></h2><p>For an arbitrary fuel of type <span>$\genfuel$</span> we can write a general equation representing the combustion of 1 mole of fuel,</p><p class="math-container">\[\genfuel + n_{\mathrm{O}_2} \mathrm{O}_2 
+\longrightarrow 
+n_{\mathrm{CO}_2} \mathrm{CO}_2 + n_{\mathrm{H}_2\mathrm{O}} \mathrm{H}_2\mathrm{O} 
++ n_{\mathrm{N}_2} \mathrm{N}_2
+\]</p><p>where the number of moles of the different species is given by balancing the reaction:</p><p class="math-container">\[\begin{aligned}
+n_{\rm{CO_2}} &amp;= x_{\mathrm{C}} \tag{1}\\
+n_{\rm{H_2O}} &amp;= \frac{x_{\mathrm{H}}}{2}\\
+n_{\rm{N_2}} &amp;= \frac{x_{\mathrm{N}}}{2}\\
+n_{\rm{O_2}} &amp;= x_{\mathrm{C}} + \frac{x_{\mathrm{H}}}{4} - \frac{x_{\mathrm{O}}}{2}.
+\end{aligned}\]</p><p>The molar fuel-oxygen ratio <span>$f$</span> is then <span>$\displaystyle{\frac{1}{n_{\rm{O_2}}}}$</span>. If the oxidzier is not pure oxygen then the stoichiometric molar  <em>fuel-oxidizer</em> ratio is given by  <span>$\displaystyle{f_{\text{stoich.}}=\frac{X_{\rm{O_2}}}{n_{\rm{O_2}} }}$</span>,  where <span>$X_{\rm{O_2}}$</span> is the mole fraction of oxygen in the oxidizer (e.g., <span>$X_{\rm{O_2}} \approx 0.21$</span> in dry air). </p><p>This reaction can also be written as</p><p class="math-container">\[\genfuel
+\longrightarrow 
+n_{\mathrm{CO}_2} \mathrm{CO}_2 + n_{\mathrm{H}_2\mathrm{O}} \mathrm{H}_2\mathrm{O} 
++ n_{\mathrm{N}_2} \mathrm{N}_2
+- n_{\mathrm{O}_2} \mathrm{O}_2 \]</p><p>which can be read as &quot;the complete combustion of 1 mole of fuel <span>$(\genfuel)$</span> consumes <span>$n_{\mathrm{O}_2}$</span> moles of <span>$\mathrm{O}_2$</span> and produces <span>$n_{\mathrm{CO}_2}$</span> moles of <span>$\mathrm{CO}_2$</span>, <span>$n_{\mathrm{H}_2\mathrm{O}}$</span> moles of <span>$\mathrm{H}_2\mathrm{O}$</span>, and <span>$n_{\mathrm{N}_2}$</span> moles of <span>$\mathrm{N}_2$</span>&quot;.</p><article><details class="docstring" open="true"><summary id="IdealGasThermo.fuelbreakdown"><a class="docstring-binding" href="#IdealGasThermo.fuelbreakdown"><code>IdealGasThermo.fuelbreakdown</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">fuelbreakdown(fuel)</code></pre><p>Number of <code>[C, H, O, N]</code> atoms in <code>fuel</code> — either a chemical-formula string (e.g. <code>&quot;CH4&quot;</code>, <code>&quot;CH3CH2OH&quot;</code>) or a database <a href="../gas/#IdealGasThermo.species"><code>species</code></a> (uses its <code>formula</code>). Used to set up combustion stoichiometry.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/3b27c07e9cdd67df31dcc15d83b2e46830e7d662/src/vitiator.jl#L106-L112">source</a></section></details></article><article><details class="docstring" open="true"><summary id="IdealGasThermo.stoich_molar_fuel_oxy_ratio"><a class="docstring-binding" href="#IdealGasThermo.stoich_molar_fuel_oxy_ratio"><code>IdealGasThermo.stoich_molar_fuel_oxy_ratio</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">stoich_molar_fuel_oxy_ratio(fuel::AbstractString)</code></pre><p>Calculates the molar fuel-<strong>oxygen</strong> ratio for stoichiometric combustion.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; using IdealGasThermo
+
+julia&gt; IdealGasThermo.stoich_molar_fuel_oxy_ratio(&quot;CH4&quot;)
+0.5
+
+julia&gt; IdealGasThermo.stoich_molar_fuel_oxy_ratio(&quot;C12H23&quot;)
+0.056338028169014086</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/3b27c07e9cdd67df31dcc15d83b2e46830e7d662/src/combustion.jl#L32-L47">source</a></section></details></article><article><details class="docstring" open="true"><summary id="IdealGasThermo.stoich_molar_FOR"><a class="docstring-binding" href="#IdealGasThermo.stoich_molar_FOR"><code>IdealGasThermo.stoich_molar_FOR</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">stoich_molar_FOR(fuel::AbstractSpecies, oxidizer::AbstractSpecies)</code></pre><p>Calculates the <strong>molar</strong> fuel-oxidizer ratio for stoichiometeric combustion for  and arbitrary fuel and oxidizer.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; CH4 = species_in_spdict(&quot;CH4&quot;);
+
+julia&gt; IdealGasThermo.stoich_molar_FOR(CH4)
+0.104738</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/3b27c07e9cdd67df31dcc15d83b2e46830e7d662/src/combustion.jl#L54-L67">source</a></section></details></article><article><details class="docstring" open="true"><summary id="IdealGasThermo.stoich_FOR"><a class="docstring-binding" href="#IdealGasThermo.stoich_FOR"><code>IdealGasThermo.stoich_FOR</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">stoich_FOR(fuel::AbstractSpecies, oxidizer::AbstractSpecies=DryAir)</code></pre><p>Calculates the <strong>mass</strong> fuel-oxidizer ratio for stoichiometeric combustion for  and arbitrary fuel and oxidizer.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; IdealGasThermo.stoich_FOR(CH4)
+0.05800961333050494</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/3b27c07e9cdd67df31dcc15d83b2e46830e7d662/src/combustion.jl#L83-L94">source</a></section></details></article><article><details class="docstring" open="true"><summary id="IdealGasThermo.reaction_change_molar_fraction"><a class="docstring-binding" href="#IdealGasThermo.reaction_change_molar_fraction"><code>IdealGasThermo.reaction_change_molar_fraction</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">reaction_change_molar_fraction(fuel::AbstractString)</code></pre><p>Mole-fraction change <code>[ΔCO2, ΔN2, ΔH2O, ΔO2]</code> for complete combustion of one mole of <code>fuel</code> (assumed <code>CᵢHⱼOₖNₗ</code>):</p><pre><code class="nohighlight hljs">    CᵢHⱼOₖNₗ ⟹ n(CO2)·CO2 + n(H2O)·H2O + n(N2)·N2 − n(O2)·O2</code></pre><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; IdealGasThermo.reaction_change_molar_fraction(&quot;CH4&quot;)
+4-element Vector{Float64}:
+  1.0
+  0.0
+  2.0
+ -2.0</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/3b27c07e9cdd67df31dcc15d83b2e46830e7d662/src/vitiator.jl#L152-L170">source</a></section></details></article><h2 id="vitiated"><a class="docs-heading-anchor" href="#vitiated">Vitiated gas composition</a><a id="vitiated-1"></a><a class="docs-heading-anchor-permalink" href="#vitiated" title="Permalink"></a></h2><p>If we consider lean combustion (i.e., more oxygen present than required  to completely react with the fuel) we can write the above equation for some molar fuel-oxygen (or more generally oxidizer) ratio <span>$(f \leq f_{\mathrm{stoich.}})$</span> as follows</p><p class="math-container">\[
+\begin{aligned}
+f \times
+\genfuel+ 
+1\times \mathrm{O}_2 
+&amp;\longrightarrow 
+
+  f n_{\mathrm{CO}_2} \mathrm{CO}_2 
+&amp;+&amp; f n_{\mathrm{H}_2\mathrm{O}} \mathrm{H}_2\mathrm{O} 
+&amp;+&amp; f n_{\mathrm{N}_2} \mathrm{N}_2 
+&amp;+&amp;\left(1 - fn_{\mathrm{O}_2}\right) \mathrm{O}_2 
+
+\\
+
+f \times
+\genfuel + 
+1\times \mathrm{O}_2 
+
+&amp;\longrightarrow 
+
+  f x_{\mathrm{C}} \mathrm{CO}_2 
+&amp;+&amp; f \frac{x_{\mathrm{H}}}{2} \mathrm{H}_2\mathrm{O} 
+&amp;+&amp; f \frac{x_{\mathrm{N}}}{2}\mathrm{N}_2 
+&amp;+&amp;\left(1 - \frac{f}{f_{\mathrm{stoich.}}}\right)\mathrm{O}_2.
+
+\end{aligned}\]</p><p>where <span>$\fst = 1/n_{\mathrm{O}_2}$</span> for oxy-combustion. More generally for some oxidzer that has <span>$X_{\rm{O_2}}$</span> moles of oxygen per mole of oxidizer,</p><p class="math-container">\[\begin{aligned}
+f
+\genfuel + 
+\mathrm{Oxidizer}
+
+\longrightarrow 
+
+  f x_{\mathrm{C}} \mathrm{CO}_2 
++ f \frac{x_{\mathrm{H}}}{2} \mathrm{H}_2\mathrm{O} 
++ f \frac{x_{\mathrm{N}}}{2}\mathrm{N}_2 
+&amp;+\mathrm{Oxidizer}\\
+&amp; - \left(\frac{f X_{\mathrm{O}_2}}{\fst}\right)\mathrm{O}_2.
+\end{aligned}\]</p><article><details class="docstring" open="true"><summary id="IdealGasThermo.vitiated_mixture"><a class="docstring-binding" href="#IdealGasThermo.vitiated_mixture"><code>IdealGasThermo.vitiated_mixture</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">vitiated_mixture(fuel::AbstractSpecies, oxidizer::AbstractSpecies, 
+FAR::Float64, ηburn::Float64=1.0)</code></pre><p>Calculates the composition of a burnt gas mixture. Defaults to stoichiometric  conditions if FAR is not specified. <code>vitiated_mixture</code> returns the number of  moles of each species present in the burnt gas mixture after combustion at the  specified FAR. <em>Note</em> the sum of result in general will <strong>not</strong> sum to 1. </p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; CH4 = species_in_spdict(&quot;CH4&quot;);
+
+julia&gt; Air = IdealGasThermo.DryAir;
+
+julia&gt; IdealGasThermo.vitiated_mixture(CH4, Air, 0.04)
+Dict{Any, Any} with 6 entries:
+  &quot;O2&quot;  =&gt; 0.0650337
+  &quot;CH4&quot; =&gt; 0.0
+  &quot;Ar&quot;  =&gt; 0.009365
+  &quot;H2O&quot; =&gt; 0.144442
+  &quot;CO2&quot; =&gt; 0.0725401
+  &quot;N2&quot;  =&gt; 0.78084
+
+julia&gt; IdealGasThermo.vitiated_mixture(CH4, Air)
+Dict{Any, Any} with 6 entries:
+  &quot;O2&quot;  =&gt; 0.0
+  &quot;CH4&quot; =&gt; 0.0
+  &quot;Ar&quot;  =&gt; 0.009365
+  &quot;H2O&quot; =&gt; 0.209476
+  &quot;CO2&quot; =&gt; 0.105057
+  &quot;N2&quot;  =&gt; 0.78084</code></pre><p>See <a href="#vitiated">here</a> for some explanation of the background.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/3b27c07e9cdd67df31dcc15d83b2e46830e7d662/src/combustion.jl#L103-L137">source</a></section><section><div><pre><code class="language-julia hljs">vitiated_mixture(fuel::AbstractString, oxidizer::AbstractString, 
+FAR::Float64, ηburn::Float64=1.0)</code></pre><p>Convenience function that finds fuel and oxidizer from thermo database</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/3b27c07e9cdd67df31dcc15d83b2e46830e7d662/src/combustion.jl#L177-L182">source</a></section></details></article><article><details class="docstring" open="true"><summary id="IdealGasThermo.vitiated_species"><a class="docstring-binding" href="#IdealGasThermo.vitiated_species"><code>IdealGasThermo.vitiated_species</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">vitiated_species(fuel::AbstractSpecies, oxidizer::AbstractSpecies, 
+FAR::Float64, ηburn::Float64=1.0, name::AbstractString=&quot;vitiated species&quot;)</code></pre><p>Returns a <a href="../gas/#IdealGasThermo.composite_species"><code>composite_species</code></a> that represents the burnt gas mixture at the specified FAR. If no FAR is provided stoichiometeric conditions are assumed. </p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; IdealGasThermo.vitiated_species(CH4, Air, 0.05, name = &quot;CH4-Air-0.05&quot;)
+Composite Species: &quot;CH4-Air-0.05&quot;
+MW = 27.89510190126262 g/mol
+with composition:
+ Species        Xᵢ
+      O2   0.02653
+      Ar   0.00859
+     H2O   0.16560
+     CO2   0.08309
+      N2   0.71619
+------------------
+       Σ   1.00000</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/3b27c07e9cdd67df31dcc15d83b2e46830e7d662/src/combustion.jl#L274-L297">source</a></section></details></article><article><details class="docstring" open="true"><summary id="IdealGasThermo.fixed_fuel_vitiated_species"><a class="docstring-binding" href="#IdealGasThermo.fixed_fuel_vitiated_species"><code>IdealGasThermo.fixed_fuel_vitiated_species</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">fixed_fuel_vitiated_species(fuel, oxidizer, ηburn::Float64=1.0)</code></pre><p>Returns a function <code>burntgas(FAR::Float64)</code> that is specific to the fuel and oxidizer combination provided. This gives a highly performant function that can  simply be called at any given FAR for that specific fuel+oxidizer combo.</p><p>This is ~4x faster than doing  <code>burntgas(FAR) = vitiated_species(&quot;CH4&quot;, &quot;Air&quot;, FAR)</code></p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; burntgas = IdealGasThermo.fixed_fuel_vitiated_species(CH4, Air)
+(::IdealGasThermo.var&quot;#burntgas#52&quot;{species, composite_species, Vector{Float64}, Vector{Float64}, Float64}) (generic function with 1 method)
+
+julia&gt; burntgas(0.05)
+Composite Species: &quot;burntgas(CH4 + Dry Air; 0.05)&quot;
+MW = 27.89510190126262 g/mol
+with composition:
+ Species        Xᵢ
+      O2   0.02653
+      Ar   0.00859
+     H2O   0.16560
+     CO2   0.08309
+      N2   0.71619
+------------------
+       Σ   1.00000
+
+julia&gt; gas1 = Gas1D(burntgas(0.02)) #Returns a Gas1D intialized with the burnt gas properties
+Gas1D(burntgas(CH4 + Dry Air; 0.02); MW = 28.51473501878705 g/mol)
+at T = 298.15 K; P = 101.325 kPa</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MIT-LAE/IdealGasThermo.jl/blob/3b27c07e9cdd67df31dcc15d83b2e46830e7d662/src/combustion.jl#L334-L366">source</a></section></details></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../derivatives/">« Derivatives</a><a class="docs-footer-nextpage" href="../benchmark/">Performance benchmarks »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 19 June 2026 23:07">Friday 19 June 2026</span>. Using Julia version 1.10.11.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
