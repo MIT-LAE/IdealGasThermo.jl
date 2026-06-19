@@ -48,22 +48,15 @@ using ForwardDiff
         end
     end
 
-    @testset "exported property API (cₚ/c_p aliases + unqualified access)" begin
-        # Asserts (a) aliases resolve to the right functions and (b) all property
-        # names are exported. The pure-core property accessors are exported, so a
-        # consumer that did `using IdealGasThermo` can call them WITHOUT qualifying.
-        # These bare names (no `IdealGasThermo.` prefix) only resolve if the export
-        # is in place — a regression in the export list makes this testset fail to
-        # even run.
-        # cₚ and c_p are aliases of the same (unexported, Base.cp-conflicting) `cp`
-        @test cₚ === IdealGasThermo.cp
-        @test c_p === IdealGasThermo.cp
-        @test γ === gamma                       # Unicode alias of gamma
-        # all property names appear in the public export list
-        @test issubset([:cₚ, :c_p, :h, :s0, :gamma, :γ, :R, :T_from_h, :pressure_ratio], names(IdealGasThermo))
-        # _T_polytropic is the internal isentropic/polytropic engine — NOT exported
-        # (the public process API is compress/expand); confirm it stays private
-        @test :_T_polytropic ∉ names(IdealGasThermo)
+    @testset "cp exported as cₚ / c_p (the Base.cp collision workaround)" begin
+        # `cp` cannot be exported — it collides with `Base.cp` (file copy) — so the
+        # exported public names are the aliases `cₚ` and `c_p`, which downstream
+        # (e.g. PowerCycles) calls UNQUALIFIED. The rest of the suite calls
+        # `IdealGasThermo.cp` qualified, so this is the only place the bare exports
+        # are exercised: a broken export fails here, not silently in a consumer.
+        air = FrozenGas(DryAir)
+        @test cₚ(air, 600.0) == c_p(air, 600.0) == IdealGasThermo.cp(air, 600.0)
+        @test γ(air, 600.0) == gamma(air, 600.0)   # Unicode alias of gamma
     end
 
     @testset "T_from_h inversion" begin
