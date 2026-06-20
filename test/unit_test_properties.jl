@@ -226,4 +226,67 @@ using ForwardDiff
         end
     end
 
+    @testset "Dual-carrying gas: AD forward properties match finite differences" begin
+        # products(sys, FAR::Dual) yields a FrozenGas{<:Dual} whose coefficients
+        # carry the FAR-tangent. When T is also a same-tag Dual, both composition
+        # and temperature move with one seed and the total derivative is the sum
+        # of the composition tangent and the temperature tangent. As for the
+        # inversions, the fuel/oxidizer-independent invariant is AD == central FD;
+        # seeding a single ξ through both products(sys, FAR0+ξ) and T0+ξ is exactly
+        # the same-tag Dual-gas-at-Dual-T path PowerCycles exercises.
+        D = ForwardDiff.derivative
+        δ = 1e-6
+        fdcheck(f) = (f(δ) - f(-δ)) / (2δ)
+        for fuel in ["CH4", "H2", "Jet-A(g)"]   # distinct C/H/O ⟹ distinct ∂X/∂FAR
+            sys  = Vitiator(fuel, DryAir)
+            FAR0 = uni(0.005, 0.02)             # sub-stoichiometric (H2 ceiling ≈ 0.029)
+            T0   = uni(900.0, 1800.0)
+            gasf(ξ) = products(sys, FAR0 + ξ)   # composition moves with the seed…
+            # …and T with it. h/cp/s0/props are the new rules; gamma/speed_of_sound/
+            # pressure_ratio carry none of their own and must inherit the total
+            # derivative through generic dispatch.
+            funcs = (
+                ξ -> IdealGasThermo.h(gasf(ξ), T0 + ξ),
+                ξ -> IdealGasThermo.cp(gasf(ξ), T0 + ξ),
+                ξ -> IdealGasThermo.s0(gasf(ξ), T0 + ξ),
+                ξ -> props(gasf(ξ), T0 + ξ).h,
+                ξ -> props(gasf(ξ), T0 + ξ).cp,
+                ξ -> props(gasf(ξ), T0 + ξ).s0,
+                ξ -> IdealGasThermo.gamma(gasf(ξ), T0 + ξ),
+                ξ -> IdealGasThermo.speed_of_sound(gasf(ξ), T0 + ξ),
+                ξ -> IdealGasThermo.pressure_ratio(gasf(ξ), T0 + ξ, T0 + 200.0 + 2ξ),
+            )
+            for f in funcs
+                @test D(f, 0.0) ≈ fdcheck(f) rtol = 1e-6
+            end
+        end
+
+        # Single-layer return type. The nested same-tag Dual the constant-
+        # substance rule produces for a Dual-carrying gas is what breaks downstream
+        # Jacobian assembly — and the value-only ≈ check above can pass on it — so
+        # pin the concrete type directly. It is fuel-invariant, so assert it once.
+        tag    = :fwdtype
+        gasd   = products(Vitiator("CH4", DryAir), ForwardDiff.Dual{tag}(0.012, 1.0))
+        Td     = ForwardDiff.Dual{tag}(1500.0, 1.0)
+        prd    = props(gasd, Td)
+        single = ForwardDiff.Dual{tag,Float64,1}
+        @test IdealGasThermo.h(gasd, Td)              isa single
+        @test IdealGasThermo.cp(gasd, Td)             isa single
+        @test IdealGasThermo.s0(gasd, Td)             isa single
+        @test prd.h  isa single
+        @test prd.cp isa single
+        @test prd.s0 isa single
+        @test IdealGasThermo.gamma(gasd, Td)          isa single   # derived, self-heals
+        @test IdealGasThermo.speed_of_sound(gasd, Td) isa single   # derived, self-heals
+        @test IdealGasThermo.pressure_ratio(gasd, Td, ForwardDiff.Dual{tag}(1700.0, 1.0)) isa single
+
+        # A different-tag temperature is a legitimate nested (higher-order) AD,
+        # not the same-tag bug — the new rules must leave it nested: the gas has
+        # tag :inner and h(gas, value(T)) is itself a Dual{:inner}, so the value
+        # rail of the result is correctly a Dual{:inner}.
+        gas_inner = products(Vitiator("CH4", DryAir), ForwardDiff.Dual{:inner}(0.03, 1.0))
+        T_outer   = ForwardDiff.Dual{:outer}(1600.0, 1.0)
+        @test ForwardDiff.value(IdealGasThermo.h(gas_inner, T_outer)) isa ForwardDiff.Dual{:inner}
+    end
+
 end
