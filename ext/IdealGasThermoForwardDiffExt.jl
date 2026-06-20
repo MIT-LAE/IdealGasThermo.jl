@@ -13,6 +13,12 @@ Inversions also cover a *Dual-carrying gas* (`FrozenGas{<:Dual}`, produced by
 term, while keeping the Newton loop on the value rail (the composition
 tangent is one forward evaluation, since properties are linear in the
 coefficients). See CONTEXT.md ("Dual-carrying gas").
+
+Forward properties (`h`, `cp`, `s0`, `props`) also cover a Dual-carrying gas
+at a same-tag Dual temperature via a value-rail-plus-tangent split: the
+composition tangent comes from one forward evaluation at the plain value
+temperature, and the temperature tangent is the closed-form ∂q/∂T times
+`partials(Td)` — giving the exact total derivative in one single-layer `Dual`.
 """
 module IdealGasThermoForwardDiffExt
 
@@ -108,6 +114,52 @@ end
 @inline _minus(a, b) = a - b
 @inline _minus(::Bool, b) = -b   # zero (plain-Float) tangent minus a Partials
 @inline _gas_tag(::FrozenGas{<:Dual{Tag}}, args...) where {Tag} = Tag
+
+# Forward properties for a Dual-carrying gas at a same-tag Dual temperature.
+# Both composition (gas coefficients) and T move with one AD seed, so the
+# tangent is the TOTAL derivative = composition tangent + temperature tangent,
+# returned as a single-layer Dual{Tag} (never a same-tag nested Dual).
+#
+# Composition tangent = _tangent(q(gas, Tᵥ)): one Dual eval at the plain
+# value temperature Tᵥ = value(Td), exact because properties are linear in
+# the coefficients.
+# Temperature tangent = closed-form ∂q/∂T (cp, cp/T, cp_dT) × partials(Td).
+#
+# These are more specific in arg 1 than the constant-substance rules above,
+# so the derived properties `gamma`, `speed_of_sound`, and `pressure_ratio`
+# inherit the fix through their generic `Real` definitions — no override needed.
+# See CONTEXT.md ("Dual-carrying gas") and docs/src/derivatives.md.
+
+function h(gas::FrozenGas{<:Dual{Tag}}, Td::Dual{Tag}) where {Tag}
+    gas0 = _value_gas(gas)
+    Tᵥ = value(Td)
+    Dual{Tag}(h(gas0, Tᵥ), _tangent(h(gas, Tᵥ)) + cp(gas0, Tᵥ) * partials(Td))
+end
+
+function cp(gas::FrozenGas{<:Dual{Tag}}, Td::Dual{Tag}) where {Tag}
+    gas0 = _value_gas(gas)
+    Tᵥ = value(Td)
+    Dual{Tag}(cp(gas0, Tᵥ), _tangent(cp(gas, Tᵥ)) + cp_dT(gas0, Tᵥ) * partials(Td))
+end
+
+function s0(gas::FrozenGas{<:Dual{Tag}}, Td::Dual{Tag}) where {Tag}
+    gas0 = _value_gas(gas)
+    Tᵥ = value(Td)
+    Dual{Tag}(s0(gas0, Tᵥ), _tangent(s0(gas, Tᵥ)) + cp(gas0, Tᵥ) / Tᵥ * partials(Td))
+end
+
+function props(gas::FrozenGas{<:Dual{Tag}}, Td::Dual{Tag}) where {Tag}
+    gas0 = _value_gas(gas)
+    Tᵥ = value(Td)
+    ∂T = partials(Td)
+    pᵥ = props(gas, Tᵥ)    # dual coefficients at plain Tᵥ: composition tangents
+    p0 = props(gas0, Tᵥ)   # value rail
+    (
+        cp = Dual{Tag}(p0.cp, _tangent(pᵥ.cp) + cp_dT(gas0, Tᵥ) * ∂T),
+        h = Dual{Tag}(p0.h, _tangent(pᵥ.h) + p0.cp * ∂T),
+        s0 = Dual{Tag}(p0.s0, _tangent(pᵥ.s0) + p0.cp / Tᵥ * ∂T),
+    )
+end
 
 # T_from_h: F(T, p) = h(gas(p), T) - hspec(p) = 0  ⟹
 #   ∂T = ( partials(hspec) - partials(h(gas, T*)) ) / cp(gas₀, T*)

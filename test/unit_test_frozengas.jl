@@ -133,6 +133,15 @@ using ForwardDiff
         # nested duals: d²h/dT² == dcp/dT
         d2h = D(t -> D(s -> IdealGasThermo.h(air, s), t), 1600.0)
         @test d2h ≈ D(t -> IdealGasThermo.cp(air, t), 1600.0) rtol = 1e-10
+
+        # Dual-carrying gas × same-tag Dual T: forward properties stay zero-allocation
+        # (h as the representative primitive, props as the compound, matching above)
+        let vit = Vitiator("CH4", DryAir),
+            gasd = products(vit, ForwardDiff.Dual{:t}(0.03, 1.0)),
+            Td   = ForwardDiff.Dual{:t}(1600.0, 1.0)
+            @test (@ballocated IdealGasThermo.h($gasd, $Td) samples = 1 evals = 1) == 0
+            @test (@ballocated props($gasd, $Td) samples = 1 evals = 1) == 0
+        end
     end
 
     @testset "construction from mole fractions" begin
