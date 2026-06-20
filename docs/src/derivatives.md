@@ -100,6 +100,46 @@ coefficients. The IFT rule then adds a "composition moves" term: the partials of
 evaluation (the properties are linear in the coefficients), still without
 touching the Newton loop.
 
+### Forward properties through composition
+
+The same value-rail philosophy applies when both the **composition** and the
+**temperature** depend on the same parameter. For a property
+``q(\mathbf{a}, T) = \mathbf{a}^\top \boldsymbol{\varphi}(T)`` (linear in
+NASA-9 coefficients ``\mathbf{a}``), with coefficients
+``\mathbf{a} = \mathbf{a}_0 + \dot{\mathbf{a}}\,\varepsilon`` and temperature
+``T = T_0 + \dot{T}\,\varepsilon`` sharing one AD seed ``\varepsilon``, the
+**total derivative** (pushforward / JVP) is
+
+```math
+\dot{q} =
+\underbrace{\dot{\mathbf{a}}^\top \boldsymbol{\varphi}(T_0)}_{\text{composition tangent}}
++
+\underbrace{\mathbf{a}_0^\top \boldsymbol{\varphi}'(T_0)\,\dot{T}}_{\text{temperature tangent}}.
+```
+
+The three primitive properties specialise to
+
+```math
+\begin{aligned}
+\dot{h}   &= \dot{h}_\text{comp}   + c_p\,\dot{T}, \\
+\dot{s}^0 &= \dot{s}^0_\text{comp} + \tfrac{c_p}{T}\,\dot{T}, \\
+\dot{c}_p &= \dot{c}_{p,\text{comp}} + \tfrac{dc_p}{dT}\,\dot{T}.
+\end{aligned}
+```
+
+The composition tangent (e.g. ``\dot{h}_\text{comp}``) is evaluated at the
+**plain** ``T_0`` — the value rail — by stripping all tangents, solving once in
+`Float64`, and attaching the two closed-form tangents. The derived properties
+(`gamma`, `speed_of_sound`, `pressure_ratio`) inherit this automatically through
+dispatch — no separate rules are needed.
+
+**Same-tag semantics.** When a `FrozenGas{<:Dual{Tag}}` (composition carries
+the seed) is evaluated at a `T::Dual{Tag}` (same tag), the extension fuses both
+tangents into a **single-layer** dual. Naive dispatch would produce a
+same-tag nested dual — a malformed result that breaks downstream Jacobian
+assembly. Different-tag duals are deliberately left nested (legitimate
+higher-order AD).
+
 ## Worked example
 
 Every block below runs when the docs are built.
@@ -131,4 +171,13 @@ ForwardDiff.gradient(f, [288.15, 12.0])
 # the composition depends on FAR, handled by the Dual-carrying-gas rule
 vit = Vitiator("CH4", DryAir)
 ForwardDiff.derivative(far -> h(products(vit, far), 1500.0), 0.03)
+```
+
+```@example deriv
+# forward-property pushforward: BOTH composition AND temperature move with FAR.
+# One seed flows through products(vit, far) and through 1500 + 1e4·far together;
+# the total derivative comes back as a single number (one-layer dual, not nested).
+g(far) = h(products(vit, far), 1500.0 + 1e4 * far)
+(ad = ForwardDiff.derivative(g, 0.03),
+ fd = (g(0.03 + 1e-6) - g(0.03 - 1e-6)) / 2e-6)
 ```
