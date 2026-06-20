@@ -196,7 +196,17 @@ terms exactly.
   Dual-carrying gas are intrinsically cheap because every property is **linear
   in the coefficients** (the lone nonlinearity, `log T`, rides the temperature
   rail), so the tangent propagates by scale-and-add with no transcendentals.
-  The inversions (`T_from_h`, `_T_polytropic`) need the **full
+  The forward properties (`h`, `cp`, `s0`, `props`) now also have same-tag
+  dual-gas rules: when a `FrozenGas{<:Dual{Tag}}` is evaluated at a
+  `T::Dual{Tag}`, the extension solves the value rail in `Float64` and returns a
+  **single-layer** dual whose tangent is the **composition tangent** (linear
+  property read at the stripped ``T_0``) plus the **closed-form temperature
+  tangent** (``c_p\dot{T}``, ``(c_p/T)\dot{T}``, etc.) — the total-derivative
+  pushforward. Same-tag nesting (which naive dispatch would produce) is
+  malformed and breaks downstream Jacobian assembly; different-tag duals are
+  left nested (legitimate higher-order AD). The derived properties (`gamma`,
+  `speed_of_sound`, `pressure_ratio`) inherit this through dispatch — no
+  separate rules. The inversions (`T_from_h`, `_T_polytropic`) need the **full
   three-term IFT rule**: the constant-substance rules account only for the
   *target* moving and silently drop the *composition moves* term, which when
   the gas is Dual-typed produces a nested-Dual result instead of a number. The
