@@ -166,11 +166,10 @@ pressure, no state. Zero-allocation, generic over `Real`.
 @inline speed_of_sound(gas::FrozenGas, T) = sqrt(gamma(gas, T) * gas.R * T)
 
 # Inversion contract (T_from_h, _T_polytropic): Newton iteration, relative
-# tolerance 1e-12 on the temperature step (well inside the documented
-# ≤ 1e-10), at most 30 iterations, deterministic fixed algorithm, errors if
+# tolerance 1e-10 on the temperature step, at most 30 iterations, deterministic fixed algorithm, errors if
 # not converged. dh/dT = cp > 0 makes h strictly monotonic in T, so the
 # solve is well-posed over the data's validity range.
-const NEWTON_RTOL = 1e-12
+const NEWTON_RTOL = 1e-10
 const NEWTON_MAXITER = 30
 
 """
