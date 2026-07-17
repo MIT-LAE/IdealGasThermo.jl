@@ -66,6 +66,32 @@ using ForwardDiff
         end
     end
 
+    @testset "T_from_h resolves NASA-9 seam targets at 1000 K" begin
+        # The raw NASA-9 coefficients remain untouched. Their finite printed
+        # precision leaves a tiny h jump at 1000 K, so an h target strictly
+        # between the two one-sided values has no unique 
+        # inverse. The public inverse uses 1000 K as the deterministic answer,
+        # while retaining the 1e-12 Newton solve elsewhere.
+        for name in ("H2O", "CH4")
+            gas = FrozenGas(species_in_spdict(name))
+            hlow, hhigh = IdealGasThermo._h_seam_limits(gas)
+            hmid = (hlow + hhigh) / 2
+            T = IdealGasThermo.T_from_h(gas, hmid)
+            @test T === 1000.0
+            @test abs(IdealGasThermo.h(gas, T) - hmid) < abs(hhigh - hlow)
+            # The primal chooses the canonical high-side 1000 K state; its
+            # derivative follows that branch's local implicit slope.
+            @test ForwardDiff.derivative(h -> IdealGasThermo.T_from_h(gas, h), hmid) ≈
+                  1 / IdealGasThermo.cp(gas, 1000.0) rtol = 1e-12
+
+            # 1000 K itself selects the high polynomial. Its exact forward
+            # enthalpy is a seam endpoint and must round-trip.
+            h1000 = IdealGasThermo.h(gas, 1000.0)
+            @test IdealGasThermo.T_from_h(gas, h1000) === 1000.0
+        end
+
+    end
+
     @testset "isentropic relations" begin
         air = FrozenGas(DryAir)
         # identity: no pressure change, no temperature change

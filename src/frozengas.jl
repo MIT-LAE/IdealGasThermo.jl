@@ -165,12 +165,32 @@ pressure, no state. Zero-allocation, generic over `Real`.
 """
 @inline speed_of_sound(gas::FrozenGas, T) = sqrt(gamma(gas, T) * gas.R * T)
 
-# Inversion contract (T_from_h, _T_polytropic): Newton iteration, relative
-# tolerance 1e-10 on the temperature step, at most 30 iterations, deterministic fixed algorithm, errors if
-# not converged. dh/dT = cp > 0 makes h strictly monotonic in T, so the
-# solve is well-posed over the data's validity range.
-const NEWTON_RTOL = 1e-10
+# Inversion contract (T_from_h, _T_polytropic): Newton iteration with a default
+# relative tolerance 1e-12 on the temperature step, at most 30 iterations, 
+# deterministic fixed algorithm, errors if
+# not converged. dh/dT = cp > 0 makes h strictly monotonic within each NASA-9
+# interval. The tiny published-data seam at the temperature range switch 
+# is handled below.
+const NEWTON_RTOL = 1e-12
 const NEWTON_MAXITER = 30
+
+# The published NASA-9 coefficient are intended to join at 1000 K (by default),
+# but their finite printed precision leaves a tiny enthalpy discontinuity for
+# some species. The inverse recognizes a target between the two one-sided limits as the
+# (unresolvable) seam interval and returns its canonical temperature.
+const NASA9_TMID = 1000.0
+const NASA9_LOGTMID = log(NASA9_TMID)
+
+@inline function _h_seam_limits(gas::FrozenGas)
+    hlow = Runiv * poly_h_R(gas.alow, NASA9_TMID, NASA9_LOGTMID)
+    hhigh = Runiv * poly_h_R(gas.ahigh, NASA9_TMID, NASA9_LOGTMID)
+    return hlow, hhigh
+end
+
+@inline function _h_is_seam_target(gas::FrozenGas, hspec)
+    hlow, hhigh = _h_seam_limits(gas)
+    return (hlow ≤ hspec ≤ hhigh) || (hhigh ≤ hspec ≤ hlow)
+end
 
 """
     T_from_h(gas, hspec; Tguess=500.0)
@@ -179,17 +199,24 @@ The enthalpy → temperature inversion: the temperature [K] at which `gas` has
 specific enthalpy `hspec` `J/kg` (same formation-inclusive datum as
 [`h`](@ref)). This is the public inversion verb — the inverse of `h(gas, T)` —
 and reads in the direction of the computation (`T_from_h`); an analogous
-`T_from_s0` would invert entropy.
+`T_from_s0` would invert entropy. Published NASA-9 coefficients can leave a
+tiny discontinuity at 1000 K. If `hspec` lies between the two one-sided
+enthalpies there, no unique inverse exists, so this function
+returns the canonical seam temperature `1000.0` K. Elsewhere it retains the
+strict Newton contract below.
 
-Identical for every gas flavor: `FrozenGas` (plain Newton), `FastFrozenGas{:seeded}`
-(table-seeded Newton, same exact contract), and `FastFrozenGas{:fast}` (pure
-table lookup, ≲ 2e-9), so accelerated gases drop into existing call sites
-unchanged. Deterministic bounded Newton solve: relative tolerance 1e-12, ≤ 30
-iterations; errors if not converged. `hspec` may be a ForwardDiff `Dual` —
-derivatives use the implicit-function-theorem rules from the package extension,
-never differentiation of the Newton loop. Pure and zero-allocation.
+Identical for every gas flavor: `FrozenGas` (plain Newton),
+`FastFrozenGas{:seeded}` (table-seeded Newton, same seam policy and strict
+Newton contract), and `FastFrozenGas{:fast}` (pure table lookup, ≲ 2e-9), so
+accelerated gases drop into existing call sites unchanged. Deterministic bounded
+Newton solve: relative tolerance 1e-12, ≤ 30 iterations and errors if not
+converged. `hspec` may be a ForwardDiff `Dual` — derivatives use the
+implicit-function-theorem rules from the package extension and is non-allocating.
 """
 function T_from_h(gas::FrozenGas, hspec; Tguess = 500.0)
+    if _h_is_seam_target(gas, hspec)
+        return one(hspec) * NASA9_TMID
+    end
     T = one(hspec / oneunit(hspec)) * Tguess # promote to eltype of hspec
     for _ = 1:NEWTON_MAXITER
         dT = (hspec - h(gas, T)) / cp(gas, T)

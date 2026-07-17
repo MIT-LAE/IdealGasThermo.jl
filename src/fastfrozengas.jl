@@ -23,12 +23,12 @@ tables sample the same NASA-9 polynomials.
 The two modes:
 
 - **`:seeded` (default — exact)**: the table provides only the *seed* for
-  the same bounded Newton iteration and convergence criterion as
-  `FrozenGas` (relative tolerance 1e-12 on the temperature step, ≤ 30
-  iterations, typically 1–2 polish steps). The answer satisfies the
-  package's documented inversion contract. Targets outside the tabulated
-  range bypass the table entirely and use the plain cold-start `FrozenGas`
-  solve — never extrapolation.
+  the same bounded Newton iteration, seam policy, and convergence criterion
+  as `FrozenGas` (relative tolerance 1e-12 on the temperature step, ≤ 30
+  iterations, typically 1–2 polish steps). The answer satisfies this 
+  tolerance wherever the literal NASA-9 polynomials have a unique
+  inverse. Targets outside the tabulated range bypass the table entirely and
+  use the plain cold-start `FrozenGas` solve — no extrapolation.
 - **`:fast` (opt-in — approximate)**: the Hermite table is evaluated
   directly, no polish. Accuracy |ΔT/T| ≲ 2e-9 over the table range at the
   default N = 256 (measured for dry air over T ∈ [250, 2200] K: 5.8e-10
