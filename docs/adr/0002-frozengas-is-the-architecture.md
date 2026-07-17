@@ -22,7 +22,7 @@ and does `FrozenGas` take over the name `Gas`?
 2. **`Gas{N}` is retained for now** — not as a thermodynamics hot path but
    as the *composition workspace* behind combustion, mixing, and humidity.
    It becomes removable only when pure FrozenGas-producing constructors
-   cover those jobs (`products(sys, FAR)`, frozen-gas mixing, humid-air
+   cover those jobs (`products_in_air(sys, FAR)`, frozen-gas mixing, humid-air
    construction). Once that layer lands, `Gas{N}` is demoted to an
    unexported interactive convenience or deprecated in turn.
 

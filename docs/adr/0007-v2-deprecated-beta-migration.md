@@ -64,7 +64,7 @@ Retire the legacy layer in **two phases**, separated by a migration window:
    legacy-only smoke test files (`unit_test_turbo`, `unit_test_vitiated`,
    `unit_test_composite`, the legacy parts of `unit_test_mixthermo`). Replace the
    remaining `vitiated_species(...)` *fixtures* in `unit_test_mixing`/
-   `unit_test_properties` with `products(Vitiator(...), FAR)` (ADR-0006 §75). This
+   `unit_test_properties` with `products_in_air(Vitiator(...), FAR)` (ADR-0006 §75). This
    touches no pure-core oracle. Because the betas are pre-releases of `2.0.0`, `Gas`
    only ever exists in pre-release versions; the first *stable* 2.x release has it gone.
    **Before** deleting the legacy test files, two coverage items must be re-homed into

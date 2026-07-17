@@ -44,7 +44,7 @@ Three further facts shaped the decision:
    (`cp`/`h`/`s0`, which never read `X`) is unchanged in speed and allocation.
    `products`/`mixed`/`humid_air` already computed `X` and threw it away; they now
    store it. For the AD path, `X` is naturally `Dual`-valued when produced by
-   `products(sys, FAR::Dual)` — the eltype `TF` widens with it, exactly as the
+   `products_in_air(sys, FAR::Dual)` — the eltype `TF` widens with it, exactly as the
    other fields already do.
 
 2. **Mixing is a free function `mix`, not a precomputed system.** Because each gas
@@ -111,7 +111,7 @@ Three further facts shaped the decision:
 ## Consequences
 
 - The internally-mixed-flow turbofan composes directly:
-  `mix(GasState(products(comb, FAR), T_core, P), GasState(FrozenGas(DryAir),
+  `mix(GasState(products_in_air(comb, FAR), T_core, P), GasState(FrozenGas(DryAir),
   T_bypass, P), BPR)` returns the energy-balanced mixed stagnation state, and the
   mixed gas's `X` feeds an afterburner `Vitiator` or another `mix`. The whole
   chain is zero-allocation and ForwardDiff-through-`FAR`/`mratio`.
