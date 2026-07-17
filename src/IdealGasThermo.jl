@@ -51,7 +51,7 @@ export compress, expand, expand_to, add_heat, add_work, extract_work
 include("flow.jl")
 export speed_of_sound, mach, stagnation_state, static_state
 include("vitiator.jl")
-export Vitiator, products
+export Vitiator, products, products_in_air
 include("mix.jl")
 export mix
 include("atmosphere.jl")
@@ -64,6 +64,10 @@ include("atmosphere.jl")
 # to the old `let g=Gas(); g.X=Xair; … end` form to machine precision (MW bit-equal).
 const DryAir = generate_composite_species(Xidict2Array(Xair), "Dry Air")
 export DryAir
+# Default oxidizer backing `products_in_air(sys, FAR)`. `Vitiator` itself is
+# reaction-only; `products` always receives its oxidizer explicitly.
+const FrozenDryAir = FrozenGas(DryAir)
+export FrozenDryAir
 include("humidity.jl")
 export humid_air
 

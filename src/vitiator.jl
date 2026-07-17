@@ -1,59 +1,50 @@
 """
     Vitiator
 
-Precomputed fuel + oxidizer combustion system: given a fuel–air ratio it
-produces the vitiated combustion-product gas via [`products`](@ref). The
-pure, allocation-free replacement for the Dict-based [`vitiated_species`](@ref)
-path.
+Precomputed fuel-reaction system: given an oxidizer composition and a fuel
+mass ratio, it produces the vitiated combustion-product gas via
+[`products`](@ref). The pure, allocation-free replacement for the Dict-based
+[`vitiated_species`] path.
 
-Built **once** from a fuel and an oxidizer (construction may consult the
-global species database `spdict`; [`products`](@ref) calls never do).
-Construction resolves the oxidizer composition and the per-mole-of-fuel
+Built **once** from a fuel (construction may consult the global species database
+`spdict`; [`products`](@ref) calls never do). It stores only the per-mole-of-fuel
 composition change for complete combustion (scaled by the burner efficiency
-`ηburn`), and stores **only that reaction stoichiometry** — the NASA-9 mixture
-lumping uses the shared module-const basis (`SPALOW`/…), not a per-system copy.
+`ηburn`) and the fuel molecular weight. The oxidizer is always an explicit
+input to `products`, allowing a changing upstream composition to carry a
+derivative without rebuilding the reaction system.
 
 This is the *composition* model of combustion; it is deliberately **not** named
 `Combustor`. That noun belongs to the hardware component in a cycle deck
 (pressure drop, efficiency map, geometry) so this layer leaves it free.
 
 ```julia-repl
-julia> sys = Vitiator("CH4", DryAir);
+julia> sys = Vitiator("CH4");
 
-julia> gas = products(sys, 0.03); # FrozenGas of the burnt mixture
+julia> gas = products(sys, FrozenDryAir, 0.03);
 ```
-
-Accepted oxidizer forms: a [`composite_species`](@ref) (e.g. `DryAir`), a
-database [`species`](@ref) or its name (`"Air"` maps to the dry-air
-composition `Xair`, mirroring the legacy path), a mole-fraction
-`Dict{String,Float64}`, or a mole-fraction vector ordered as `spdict`.
 """
 struct Vitiator
     name::String
     ηburn::Float64                               # burner efficiency [-]
-    massratio::Float64                           # MW_ox / MW_fuel [-]
+    MWfuel::Float64                              # fuel molecular weight [g/mol]
     sumΔX::Float64                               # net mole change per mole fuel [-]
-    Xin::SVector{Nspecies,Float64}               # oxidizer mole fractions (Σ = 1)
     ΔX::SVector{Nspecies,Float64}                # mole change per mole fuel
 end
 
 """
-    Vitiator(fuel, oxidizer=DryAir; ηburn=1.0)
+    Vitiator(fuel; ηburn=1.0)
 
-Construct the precomputed combustion system for `fuel`
-(an `AbstractString` name or a [`species`](@ref)) burning in `oxidizer`
-(see [`Vitiator`](@ref) for accepted forms) with burner efficiency
-`ηburn` (fraction of fuel burnt; the remainder appears unreacted in the
-products). Allocates and consults the species database — do this once,
-outside the hot path. The `AbstractString` form resolves the fuel name and
-forwards to the `species` method.
+Construct the precomputed fuel-reaction system for `fuel` (an `AbstractString`
+name or a [`species`](@ref)) with burner efficiency `ηburn`. The oxidizer belongs
+to [`products`](@ref), not the system: use `products(sys, oxidizer, FAR)`, or
+[`products_in_air`](@ref) for the dry-air convenience. Construction allocates and
+consults the species database — do this once, outside the hot path. The
+`AbstractString` form resolves the fuel name and forwards to the `species` method.
 """
-Vitiator(fuel::AbstractString, oxidizer = DryAir; ηburn::Float64 = 1.0) =
-    Vitiator(species_in_spdict(fuel), oxidizer; ηburn = ηburn)
+Vitiator(fuel::AbstractString; ηburn::Float64 = 1.0) =
+    Vitiator(species_in_spdict(fuel); ηburn = ηburn)
 
-function Vitiator(fuel::species, oxidizer = DryAir; ηburn::Float64 = 1.0)
-    Xin, MWox = _X_MW(oxidizer)
-
+function Vitiator(fuel::species; ηburn::Float64 = 1.0)
     # Per-mole-of-fuel composition change, scaled by ηburn; unburnt fuel
     # passes through (mirrors vitiated_mixture).
     nCO2, nN2, nH2O, nO2 = ηburn .* reaction_change_molar_fraction(fuel.name)
@@ -66,22 +57,36 @@ function Vitiator(fuel::species, oxidizer = DryAir; ηburn::Float64 = 1.0)
     ΔX[findfirst(==("O2"), names)] += nO2
 
     Vitiator(
-        "$(fuel.name) + $(oxidizer isa AbstractSpecies ? oxidizer.name : "oxidizer")",
+        "$(fuel.name) reaction",
         ηburn,
-        MWox / fuel.MW,
+        fuel.MW,
         sum(ΔX),
-        SVector{Nspecies,Float64}(Xin),
         SVector{Nspecies,Float64}(ΔX),
     )
 end
 
 """
-    products(sys::Vitiator, FAR) -> FrozenGas
+    products_in_air(sys::Vitiator, FAR) -> FrozenGas
 
-Combustion-product [`FrozenGas`](@ref) of the system `sys` at fuel–air
-(mass) ratio `FAR`. Pure function of `(sys, FAR)`: zero allocations,
-no global lookups, smooth in `FAR` and generic over `Real` (ForwardDiff
-through `FAR` works).
+Dry-air convenience for [`products`](@ref): equivalent to
+`products(sys, FrozenDryAir, FAR)`. Use it only when dry air is the
+intended oxidizer; [`products`](@ref) itself always takes an oxidizer explicitly.
+"""
+products_in_air(sys::Vitiator, FAR) = products(sys, FrozenDryAir, FAR)
+
+"""
+    products(sys::Vitiator, oxidizer, FAR) -> FrozenGas
+
+Combustion-product [`FrozenGas`](@ref) from the fuel reaction `sys`, oxidizer,
+and fuel/oxidizer mass ratio `FAR`. The function is pure and generic over
+`Real`: FAR and/or oxidizer composition can carry ForwardDiff tangents. Its
+zero-allocation hot paths accept a [`FrozenGas`] or database-ordered `SVector`
+oxidizer. An `AbstractVector` convenience method converts to that static-vector
+kernel; use [`products_in_air`](@ref) when dry air is intended.
+
+The three-argument form derives the oxidizer molecular weight and composition
+from its live input, so a changing upstream composition can carry a ForwardDiff
+tangent without constructing a new reaction system.
 
 The product composition is
 `X(FAR) = (Xin + molFAR·ΔX) / (1 + molFAR·ΣΔX)` with
@@ -92,10 +97,23 @@ by `1000/MW` — identical (to rounding) to
 `FrozenGas(vitiated_species(fuel, oxidizer, FAR))`. Same formation-inclusive
 enthalpy datum as every `FrozenGas`.
 """
-function products(sys::Vitiator, FAR)
-    molFAR = FAR * sys.massratio
-    X = (sys.Xin + molFAR * sys.ΔX) / (1 + molFAR * sys.sumΔX)
+function products(sys::Vitiator, Xin::AbstractVector{TX}, FAR) where {TX<:Real}
+    products(sys, SVector{Nspecies,TX}(Xin), FAR)
+end
+
+function products(sys::Vitiator, Xin::SVector{Nspecies,TX}, FAR) where {TX<:Real}
+    Xoxidizer = Xin / sum(Xin)
+    molFAR = FAR * dot(SPMW, Xoxidizer) / sys.MWfuel
+    X = (Xoxidizer + molFAR * sys.ΔX) / (1 + molFAR * sys.sumΔX)
     FrozenGas(X)   # the lumping (basis × X + entropy of mixing) lives in FrozenGas
+end
+
+# A FrozenGas is already normalized and stores its molecular weight, so the
+# live re-burn path avoids redoing the generic SVector input normalization.
+function products(sys::Vitiator, oxidizer::FrozenGas, FAR)
+    molFAR = FAR * oxidizer.MW / sys.MWfuel
+    X = (oxidizer.X + molFAR * sys.ΔX) / (1 + molFAR * sys.sumΔX)
+    FrozenGas(X)
 end
 
 # ── Combustion stoichiometry ──────────────────────────────────────────────────
