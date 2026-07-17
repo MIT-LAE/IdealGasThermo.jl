@@ -12,16 +12,16 @@ using ForwardDiff
     uni(a, b) = a + (b - a) * rand(rng) #uniform random between a and b
 
     air = FrozenGas(DryAir)
-    sysCH4 = Vitiator("CH4", DryAir)
-    sysJet = Vitiator("Jet-A(g)", DryAir)
+    sysCH4 = Vitiator("CH4")
+    sysJet = Vitiator("Jet-A(g)")
     vit = IdealGasThermo.vitiated_species("CH4", "Air", 0.04)
 
     # a small pool of randomly-parameterized gases spanning what the
     # constructors can produce
     gas_pool() = [
         air,
-        products(sysCH4, uni(0.005, 0.05)),
-        products(sysJet, uni(0.005, 0.045)),
+        products_in_air(sysCH4, uni(0.005, 0.05)),
+        products_in_air(sysJet, uni(0.005, 0.045)),
         mix(FrozenGas(DryAir), FrozenGas(vit), uni(0.1, 10.0)),
         humid_air(SH = uni(0.001, 0.05)),
     ]
@@ -82,7 +82,7 @@ using ForwardDiff
             ΣΔX = sum(IdealGasThermo.reaction_change_molar_fraction(fuel))
             for _ = 1:3
                 f = uni(0.005, FARmax)
-                gp = products(sys, f)
+                gp = products_in_air(sys, f)
                 # mass conservation through the mole-fraction algebra:
                 # (1 + molFAR·ΣΔX)·MW_products = MW_ox + molFAR·MW_fuel
                 molFAR = f * DryAir.MW / fsp.MW
@@ -97,7 +97,7 @@ using ForwardDiff
             fgas = FrozenGas(fsp)
             release =
                 -(
-                    (1 + f) * IdealGasThermo.h(products(sys, f), 298.15) -
+                    (1 + f) * IdealGasThermo.h(products_in_air(sys, f), 298.15) -
                     IdealGasThermo.h(air, 298.15) - f * IdealGasThermo.h(fgas, 298.15)
                 )
             @test release ≈ f * IdealGasThermo.LHV(fsp) rtol = 1e-5
@@ -162,7 +162,7 @@ using ForwardDiff
                 (i == 0 || i == n ? 1 : iseven(i) ? 2 : 4) * f(a + (b - a) * i / n)
                 for i = 0:n
             )
-        cases = [(air, 300.0, 800.0), (products(sysJet, 0.03), 700.0, 1500.0)]
+        cases = [(air, 300.0, 800.0), (products_in_air(sysJet, 0.03), 700.0, 1500.0)]
         push!(cases, (gas_pool()[end], uni(250.0, 900.0), uni(1100.0, 2200.0)))
         for (gas, T1, T2) in cases
             ∫cp = simpson(T -> IdealGasThermo.cp(gas, T), T1, T2, 2048)
@@ -182,11 +182,11 @@ using ForwardDiff
         @test_throws ErrorException T_from_h(air, 1.0e12)
         # beyond-stoichiometric FAR would need negative O2 — errors loudly
         # rather than returning an unphysical composition
-        @test_throws DomainError products(sysCH4, 0.5)
+        @test_throws DomainError products_in_air(sysCH4, 0.5)
     end
 
     @testset "Dual-carrying gas: AD inversions match finite differences" begin
-        # products(sys, FAR::Dual) yields a FrozenGas{<:Dual} whose coefficients
+        # products_in_air(sys, FAR::Dual) yields a FrozenGas{<:Dual} whose coefficients
         # carry the FAR-tangent, so inverting through it exercises the full
         # three-term IFT rule (the "composition moves" term). The invariant that
         # actually defines the rule's correctness — independent of fuel, oxidizer
@@ -199,7 +199,7 @@ using ForwardDiff
         δ = 1e-6
         fdcheck(f, x) = (f(x + δ) - f(x - δ)) / (2δ)
         for fuel in ["CH4", "H2", "Jet-A(g)"]   # distinct C/H/O ⟹ distinct ∂X/∂FAR
-            sys = Vitiator(fuel, DryAir)
+            sys = Vitiator(fuel)
             fsp = species_in_spdict(fuel)
             hF = 1000 * fsp.Hf / fsp.MW
             # Stay sub-stoichiometric for the leanest-ceiling fuel in the pool
@@ -209,39 +209,39 @@ using ForwardDiff
 
             # (1) burner energy balance: Dual gas + Dual target
             hA = IdealGasThermo.h(air, uni(500.0, 900.0))
-            T4of(far) = T_from_h(products(sys, far), (hA + far * hF) / (1 + far))
+            T4of(far) = T_from_h(products_in_air(sys, far), (hA + far * hF) / (1 + far))
             d1 = D(T4of, FAR0)
             @test d1 isa Real                       # not a nested Dual
             @test d1 ≈ fdcheck(T4of, FAR0) rtol = 1e-6
 
             # (2) Dual gas + plain-Float target: invert a moving gas to fixed h
-            hfix = IdealGasThermo.h(products(sys, FAR0), uni(1200.0, 1900.0))
-            Tfix(far) = T_from_h(products(sys, far), hfix)
+            hfix = IdealGasThermo.h(products_in_air(sys, FAR0), uni(1200.0, 1900.0))
+            Tfix(far) = T_from_h(products_in_air(sys, far), hfix)
             @test D(Tfix, FAR0) ≈ fdcheck(Tfix, FAR0) rtol = 1e-6
 
             # (3) Dual gas through the isentropic inversion
             T1, PR = uni(1100.0, 1500.0), uni(2.0, 10.0)
-            Tisen(far) = IdealGasThermo._T_polytropic(products(sys, far), T1, PR)
+            Tisen(far) = IdealGasThermo._T_polytropic(products_in_air(sys, far), T1, PR)
             @test D(Tisen, FAR0) ≈ fdcheck(Tisen, FAR0) rtol = 1e-6
         end
     end
 
     @testset "Dual-carrying gas: AD forward properties match finite differences" begin
-        # products(sys, FAR::Dual) yields a FrozenGas{<:Dual} whose coefficients
+        # products_in_air(sys, FAR::Dual) yields a FrozenGas{<:Dual} whose coefficients
         # carry the FAR-tangent. When T is also a same-tag Dual, both composition
         # and temperature move with one seed and the total derivative is the sum
         # of the composition tangent and the temperature tangent. As for the
         # inversions, the fuel/oxidizer-independent invariant is AD == central FD;
-        # seeding a single ξ through both products(sys, FAR0+ξ) and T0+ξ is exactly
+        # seeding a single ξ through both products_in_air(sys, FAR0+ξ) and T0+ξ is exactly
         # the same-tag Dual-gas-at-Dual-T path PowerCycles exercises.
         D = ForwardDiff.derivative
         δ = 1e-6
         fdcheck(f) = (f(δ) - f(-δ)) / (2δ)
         for fuel in ["CH4", "H2", "Jet-A(g)"]   # distinct C/H/O ⟹ distinct ∂X/∂FAR
-            sys  = Vitiator(fuel, DryAir)
+            sys  = Vitiator(fuel)
             FAR0 = uni(0.005, 0.02)             # sub-stoichiometric (H2 ceiling ≈ 0.029)
             T0   = uni(900.0, 1800.0)
-            gasf(ξ) = products(sys, FAR0 + ξ)   # composition moves with the seed…
+            gasf(ξ) = products_in_air(sys, FAR0 + ξ) # composition moves with the seed…
             # …and T with it. h/cp/s0/props are the new rules; gamma/speed_of_sound/
             # pressure_ratio carry none of their own and must inherit the total
             # derivative through generic dispatch.
@@ -266,7 +266,7 @@ using ForwardDiff
         # Jacobian assembly — and the value-only ≈ check above can pass on it — so
         # pin the concrete type directly. It is fuel-invariant, so assert it once.
         tag    = :fwdtype
-        gasd   = products(Vitiator("CH4", DryAir), ForwardDiff.Dual{tag}(0.012, 1.0))
+        gasd   = products_in_air(Vitiator("CH4"), ForwardDiff.Dual{tag}(0.012, 1.0))
         Td     = ForwardDiff.Dual{tag}(1500.0, 1.0)
         prd    = props(gasd, Td)
         single = ForwardDiff.Dual{tag,Float64,1}
@@ -284,7 +284,7 @@ using ForwardDiff
         # not the same-tag bug — the new rules must leave it nested: the gas has
         # tag :inner and h(gas, value(T)) is itself a Dual{:inner}, so the value
         # rail of the result is correctly a Dual{:inner}.
-        gas_inner = products(Vitiator("CH4", DryAir), ForwardDiff.Dual{:inner}(0.03, 1.0))
+        gas_inner = products_in_air(Vitiator("CH4"), ForwardDiff.Dual{:inner}(0.03, 1.0))
         T_outer   = ForwardDiff.Dual{:outer}(1600.0, 1.0)
         @test ForwardDiff.value(IdealGasThermo.h(gas_inner, T_outer)) isa ForwardDiff.Dual{:inner}
     end

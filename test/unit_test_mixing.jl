@@ -25,7 +25,7 @@ using ForwardDiff
 
     @testset "energy balance: adiabatic mix conserves total enthalpy" begin
         P = 2.5e5
-        core = GasState(products(Vitiator("CH4", DryAir), 0.03), 1500.0, P)
+        core = GasState(products_in_air(Vitiator("CH4"), 0.03), 1500.0, P)
         bypass = GasState(FrozenGas(DryAir), 320.0, P)
         BPR = 5.0
         m = mix(core, bypass, BPR)

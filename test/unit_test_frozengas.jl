@@ -162,8 +162,8 @@ using ForwardDiff
 
         # Dual-carrying gas × same-tag Dual T: forward properties stay zero-allocation
         # (h as the representative primitive, props as the compound, matching above)
-        let vit = Vitiator("CH4", DryAir),
-            gasd = products(vit, ForwardDiff.Dual{:t}(0.03, 1.0)),
+        let vit = Vitiator("CH4"),
+            gasd = products_in_air(vit, ForwardDiff.Dual{:t}(0.03, 1.0)),
             Td   = ForwardDiff.Dual{:t}(1600.0, 1.0)
             @test (@ballocated IdealGasThermo.h($gasd, $Td) samples = 1 evals = 1) == 0
             @test (@ballocated props($gasd, $Td) samples = 1 evals = 1) == 0
@@ -202,7 +202,7 @@ using ForwardDiff
         @test IdealGasThermo.cp(rebuilt, 800.0) ≈ IdealGasThermo.cp(air, 800.0) rtol = 1e-14
 
         # FAR-carrying products expose the (Dual-valued) composition too
-        p = products(Vitiator("CH4", DryAir), 0.03)
+        p = products_in_air(Vitiator("CH4"), 0.03)
         @test sum(p.X) ≈ 1.0
     end
 

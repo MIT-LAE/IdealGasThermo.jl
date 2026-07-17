@@ -123,15 +123,15 @@ using ForwardDiff
         # IFT rule and return a single-layer Dual. (The other GasState accessors
         # are plain delegations, covered by the dual-gas property tests.)
         D = ForwardDiff.derivative
-        vit = Vitiator("CH4", DryAir)
+        vit = Vitiator("CH4")
         far0, M = 0.03, 0.8
         δ = 1e-6
         fd(f) = (f(far0 + δ) - f(far0 - δ)) / 2δ
-        stag(far) = stagnation_state(GasState(products(vit, far), 1500.0, 8e5), M).T
-        stat(far) = static_state(GasState(products(vit, far), 1500.0, 8e5), M).T
+        stag(far) = stagnation_state(GasState(products_in_air(vit, far), 1500.0, 8e5), M).T
+        stat(far) = static_state(GasState(products_in_air(vit, far), 1500.0, 8e5), M).T
         # single-layer, not the nested Dual the constant-substance rule would give
         # (the value-only ≈ check below can pass on a nested result, so pin the type)
-        Sd = GasState(products(vit, ForwardDiff.Dual{:far}(far0, 1.0)), 1500.0, 8e5)
+        Sd = GasState(products_in_air(vit, ForwardDiff.Dual{:far}(far0, 1.0)), 1500.0, 8e5)
         @test stagnation_state(Sd, M).T isa ForwardDiff.Dual{:far,Float64,1}
         @test D(stag, far0) ≈ fd(stag) rtol = 1e-6
         @test D(stat, far0) ≈ fd(stat) rtol = 1e-6
