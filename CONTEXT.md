@@ -34,18 +34,24 @@ terms exactly.
   not zero. Sensible enthalpy from 298.15 K is `h(gas, T) − h(gas, 298.15)`.
 - **Vitiated mixture** — combustion products of a fuel + oxidizer at a given
   **FAR** (fuel–air mass ratio), frozen composition, complete combustion.
-- **Vitiator** — a precomputed fuel + oxidizer combustion system, built once
-  from a fuel and an oxidizer; stores **only the reaction stoichiometry**
-  (`Xin`, `ΔX`, `massratio`, `ηburn`) — the NASA-9 lumping uses the shared
-  module-const basis. The pure, allocation-free replacement for the Dict-based
-  `vitiated_species` path on the hot path. Deliberately **not** named
+- **Vitiator** — a precomputed **fuel-reaction** system, built once from a fuel;
+  stores only the reaction stoichiometry (`MWfuel`, `ΔX`, `ηburn`) — the NASA-9
+  lumping uses the shared module-const basis. The oxidizer is an input to
+  `products`, so a fixed reaction can burn either dry air
+  (`products_in_air(sys, FAR)`) or a specific, possibly Dual-carrying,
+  `FrozenGas` (`products(sys, oxidizer, FAR)`) without reconstructing the system. The pure,
+  allocation-free replacement for the Dict-based `vitiated_species` path on the
+  hot path. Deliberately **not** named
   `Combustor`: that noun is reserved for the hardware component (pressure drop,
   efficiency, geometry) one abstraction level up in a cycle deck (ADR-0008).
   Construction is two methods: a `species` method does the work; the
   `AbstractString` method resolves the fuel name and forwards.
-- **products** — `products(sys::Vitiator, FAR) -> FrozenGas`: the
-  combustion-product gas at a given FAR. Pure, zero-allocation, smooth in
-  FAR (ForwardDiff through FAR works; `FrozenGas{TF}` widens its eltype).
+- **products** — `products(sys::Vitiator, oxidizer, FAR) -> FrozenGas`: the
+  combustion-product gas at a given fuel/oxidizer mass ratio. The hot path takes
+  a `FrozenGas` or database-ordered `SVector` oxidizer and is pure,
+  zero-allocation, and smooth in FAR and oxidizer composition (ForwardDiff
+  through either widens `FrozenGas{TF}`). `products_in_air(sys, FAR)` is the
+  dry-air convenience form.
 - **mix** — the merge of two gases, a free function (no precomputed system —
   each `FrozenGas` already carries its composition `X`); ADR-0008.
   - `mix(a::FrozenGas, b::FrozenGas, mratio) -> FrozenGas`: the merged
@@ -189,7 +195,7 @@ terms exactly.
   inversions — never by differentiating a Newton loop.
 - **Dual-carrying gas** — a `FrozenGas{<:Dual}`, i.e. a substance whose
   *coefficients themselves* carry a tangent, as produced by
-  `products(sys, FAR::Dual)` (the product composition depends on FAR, so the
+  `products_in_air(sys, FAR::Dual)` (the product composition depends on FAR, so the
   mass-scaled NASA-9 coefficients, MW, R, and Hf all carry the FAR-derivative).
   The parametric eltype `FrozenGas{TF<:Real}` is what makes this legal: a
   Dual-valued argument simply widens the gas. Forward property reads through a

@@ -6,8 +6,8 @@ run when the docs are built.
 
 ## Vitiated products
 
-A `Vitiator` is the *composition* model of combustion: build it **once** for a
-given fuel and oxidizer, then call `products(vit, FAR)` for any fuel–air ratio
+A `Vitiator` is the *reaction* model of combustion: build it **once** for a
+given fuel, then call `products(vit, oxidizer, FAR)` for any fuel/oxidizer ratio
 ``\mathrm{FAR}`` (by mass). It returns an immutable `FrozenGas` — the burned-gas
 substance — with no allocation. (We choose `Vitiator` because something like `Combustor` is 
 very likely to conflict with the use cases of this package)
@@ -15,8 +15,9 @@ very likely to conflict with the use cases of this package)
 ```@example comb
 using IdealGasThermo
 
-vit    = Vitiator("CH4", DryAir)     # methane burned in dry air, built once
-burned = products(vit, 0.03)         # FAR = 0.03 (lean)
+vit    = Vitiator("CH4")             # methane reaction, built once
+air    = FrozenDryAir                  # oxidizer
+burned = products(vit, air, 0.03)     # FAR = 0.03 (lean)
 
 (R = R(burned), cp_1500 = c_p(burned, 1500.0))
 ```
@@ -38,8 +39,8 @@ can differentiate through it — see [Thermodynamic derivatives](@ref derivative
 **composition** (each gas remembers its mole fractions):
 
 ```@example comb
-core   = products(vit, 0.03)         # hot combustion products
-bypass = FrozenGas(DryAir)           # cold bypass air
+core   = products(vit, air, 0.03)    # hot combustion products
+bypass = FrozenDryAir                # cold bypass air
 
 blend = mix(core, bypass, 5.0)       # 5 parts bypass per part core
 c_p(blend, 1000.0)

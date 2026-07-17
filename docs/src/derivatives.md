@@ -93,7 +93,7 @@ This is about **2× faster** than differentiating the loop and, more importantly
 ### Differentiating through composition
 
 When the composition itself depends on a parameter — as in
-`products(vit, FAR::Dual)`, where the burned-gas mole fractions are a function of
+`products(vit, air, FAR::Dual)`, where the burned-gas mole fractions are a function of
 the fuel–air ratio — the resulting `FrozenGas` *carries* the tangent in its own
 coefficients. The IFT rule then adds a "composition moves" term: the partials of
 ``h(\text{gas}, T^\star)`` with respect to the gas, obtained from a single forward
@@ -169,15 +169,15 @@ ForwardDiff.gradient(f, [288.15, 12.0])
 ```@example deriv
 # differentiate burned-gas enthalpy through combustion w.r.t. FAR —
 # the composition depends on FAR, handled by the Dual-carrying-gas rule
-vit = Vitiator("CH4", DryAir)
-ForwardDiff.derivative(far -> h(products(vit, far), 1500.0), 0.03)
+vit = Vitiator("CH4")
+ForwardDiff.derivative(far -> h(products(vit, air, far), 1500.0), 0.03)
 ```
 
 ```@example deriv
 # forward-property pushforward: BOTH composition AND temperature move with FAR.
-# One seed flows through products(vit, far) and through 1500 + 1e4·far together;
+# One seed flows through products(vit, air, far) and through 1500 + 1e4·far together;
 # the total derivative comes back as a single number (one-layer dual, not nested).
-g(far) = h(products(vit, far), 1500.0 + 1e4 * far)
+g(far) = h(products(vit, air, far), 1500.0 + 1e4 * far)
 (ad = ForwardDiff.derivative(g, 0.03),
  fd = (g(0.03 + 1e-6) - g(0.03 - 1e-6)) / 2e-6)
 ```
