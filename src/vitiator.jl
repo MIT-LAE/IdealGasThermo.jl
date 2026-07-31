@@ -28,13 +28,13 @@ database [`species`](@ref) or its name (`"Air"` maps to the dry-air
 composition `Xair`, mirroring the legacy path), a mole-fraction
 `Dict{String,Float64}`, or a mole-fraction vector ordered as `spdict`.
 """
-struct Vitiator
+struct Vitiator{R<:Real}
     name::String
     ηburn::Float64                               # burner efficiency [-]
-    massratio::Float64                           # MW_ox / MW_fuel [-]
-    sumΔX::Float64                               # net mole change per mole fuel [-]
-    Xin::SVector{Nspecies,Float64}               # oxidizer mole fractions (Σ = 1)
-    ΔX::SVector{Nspecies,Float64}                # mole change per mole fuel
+    massratio::R                           # MW_ox / MW_fuel [-]
+    sumΔX::R                               # net mole change per mole fuel [-]
+    Xin::SVector{Nspecies,R}               # oxidizer mole fractions (Σ = 1)
+    ΔX::SVector{Nspecies,R}                # mole change per mole fuel
 end
 
 """
@@ -72,6 +72,31 @@ function Vitiator(fuel::species, oxidizer = DryAir; ηburn::Float64 = 1.0)
         sum(ΔX),
         SVector{Nspecies,Float64}(Xin),
         SVector{Nspecies,Float64}(ΔX),
+    )
+end
+
+#This vitiator can be used with ForwardDiff for cases where oxidizer is a Real vector
+function Vitiator(fuel::species, X_oxidizer::AbstractVector{R}; ηburn::Float64 = 1.0) where {R<:Real}
+    _, MWox = _X_MW(X_oxidizer)
+
+    # Per-mole-of-fuel composition change, scaled by ηburn; unburnt fuel
+    # passes through (mirrors vitiated_mixture).
+    nCO2, nN2, nH2O, nO2 = ηburn .* reaction_change_molar_fraction(fuel.name)
+    ΔX = zeros(R, Nspecies)
+    names = spdict.name
+    ΔX[findfirst(==(fuel.name), names)] += 1.0 - ηburn
+    ΔX[findfirst(==("CO2"), names)] += nCO2
+    ΔX[findfirst(==("H2O"), names)] += nH2O
+    ΔX[findfirst(==("N2"), names)] += nN2
+    ΔX[findfirst(==("O2"), names)] += nO2
+
+    Vitiator(
+        "$(fuel.name) + oxidizer",
+        ηburn,
+        MWox / fuel.MW,
+        sum(ΔX),
+        SVector{Nspecies,R}(X_oxidizer),
+        SVector{Nspecies,R}(ΔX),
     )
 end
 

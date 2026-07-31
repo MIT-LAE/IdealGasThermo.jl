@@ -149,6 +149,6 @@ end
 function _X_MW(X::AbstractVector{<:Real})
     length(X) == Nspecies ||
         error("Mole-fraction vector must have length $Nspecies (spdict order)")
-    Xn = Vector{Float64}(X) ./ sum(X)
+    Xn = X ./ sum(X)
     return Xn, dot(spdict.MW, Xn)
 end
