@@ -60,12 +60,25 @@ using ForwardDiff
         h_product(o2) = IdealGasThermo.h(products(sys, oxidizer(o2), 0.02), 1600.0)
         d_ad = ForwardDiff.derivative(h_product, o2_0)
         δ = 1e-6
-        d_fd = (h_product(o2_0 + δ) - h_product(o2_0 - δ)) / (2δ)
-        @test d_ad ≈ d_fd rtol = 1e-6
+        d_fd_o2 = (h_product(o2_0 + δ) - h_product(o2_0 - δ)) / (2δ)
+        @test d_ad ≈ d_fd_o2 rtol = 1e-6
+
+        # The same derivative path occurs when a physical upstream mixer
+        # supplies the oxidizer. `mix` returns a FrozenGas whose composition
+        # follows `mratio`; products must preserve that tangent without
+        # rebuilding the fuel reaction system.
+        co2 = FrozenGas(species_in_spdict("CO2"))
+        h_mixed_oxidizer(mratio) =
+            IdealGasThermo.h(products(sys, mix(air, co2, mratio), 0.02), 1600.0)
+        mratio = 0.05
+        d_ad = ForwardDiff.derivative(h_mixed_oxidizer, mratio)
+        d_fd_mixed =
+            (h_mixed_oxidizer(mratio + δ) - h_mixed_oxidizer(mratio - δ)) / (2δ)
+        @test d_ad ≈ d_fd_mixed rtol = 1e-6
 
         h_product_vector(o2) =
             IdealGasThermo.h(products(sys, collect(oxidizer(o2)), 0.02), 1600.0)
-        @test ForwardDiff.derivative(h_product_vector, o2_0) ≈ d_fd rtol = 1e-6
+        @test ForwardDiff.derivative(h_product_vector, o2_0) ≈ d_fd_o2 rtol = 1e-6
 
         Xdual = oxidizer(ForwardDiff.Dual{:oxidizer}(o2_0, 1.0))
         @test eltype(products(sys, Xdual, 0.02).X) <: ForwardDiff.Dual
@@ -80,6 +93,15 @@ using ForwardDiff
             products(sys, products_in_air(upstream, far), 0.005), 1600.0)
         d_ad = ForwardDiff.derivative(h_reburn, 0.01)
         d_fd = (h_reburn(0.01 + δ) - h_reburn(0.01 - δ)) / (2δ)
+        @test d_ad ≈ d_fd rtol = 1e-6
+
+        # A downstream burner may use a different fuel. Each Vitiator can be
+        # constructed once, then consume the live product gas from upstream.
+        downstream = Vitiator("H2")
+        h_two_fuel_burners(far) = IdealGasThermo.h(
+            products(downstream, products_in_air(upstream, far), 0.005), 1600.0)
+        d_ad = ForwardDiff.derivative(h_two_fuel_burners, 0.01)
+        d_fd = (h_two_fuel_burners(0.01 + δ) - h_two_fuel_burners(0.01 - δ)) / (2δ)
         @test d_ad ≈ d_fd rtol = 1e-6
     end
 
